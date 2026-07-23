@@ -39,15 +39,6 @@ function sanitizeInput(raw: unknown): UserInput | null {
     const linkedin: NonNullable<UserInput["linkedin"]> = {};
     if (["none", "identity", "workplace", "unknown"].includes(li.verification as string))
       linkedin.verification = li.verification as NonNullable<UserInput["linkedin"]>["verification"];
-    if (li.accountCreatedYear === null) linkedin.accountCreatedYear = null;
-    else if (
-      typeof li.accountCreatedYear === "number" &&
-      li.accountCreatedYear >= 1990 &&
-      li.accountCreatedYear <= new Date().getFullYear()
-    )
-      linkedin.accountCreatedYear = Math.floor(li.accountCreatedYear);
-    if (typeof li.linkedinWarningShown === "boolean")
-      linkedin.linkedinWarningShown = li.linkedinWarningShown;
     linkedin.profileEmployer = str(li.profileEmployer);
     if (["lt50", "50to500", "gt500", "unknown"].includes(li.connections as string))
       linkedin.connections = li.connections as NonNullable<UserInput["linkedin"]>["connections"];
@@ -56,6 +47,8 @@ function sanitizeInput(raw: unknown): UserInput | null {
       linkedin.profileLocationMatches = li.profileLocationMatches as "yes" | "no" | "unknown";
     if (["none", "some", "regular", "unknown"].includes(li.activityLevel as string))
       linkedin.activityLevel = li.activityLevel as "none" | "some" | "regular" | "unknown";
+    if (["none", "few", "some", "many", "unknown"].includes(li.postEngagement as string))
+      linkedin.postEngagement = li.postEngagement as NonNullable<UserInput["linkedin"]>["postEngagement"];
     if (ynu.includes(li.listedOnCompanyPage as string))
       linkedin.listedOnCompanyPage = li.listedOnCompanyPage as "yes" | "no" | "unknown";
     if (ynu.includes(li.mutualConnections as string))

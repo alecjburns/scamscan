@@ -42,7 +42,7 @@ async function main() {
     {
       message: "Please pay $300 for your laptop and we will reimburse you after onboarding.",
       claimedCompany: "Acme",
-      linkedin: { verification: "workplace", accountCreatedYear: 2015 },
+      linkedin: { verification: "workplace", postEngagement: "many" },
     },
     { paymentOrEquipmentRequest: true }
   );
@@ -56,7 +56,7 @@ async function main() {
   const r3 = await assess(
     {
       message: "Deposit 0.1 BTC to activate your work account.",
-      linkedin: { verification: "identity", accountCreatedYear: 2012 },
+      linkedin: { verification: "identity", postEngagement: "many" },
     },
     { cryptoDeposit: true }
   );
@@ -71,7 +71,7 @@ async function main() {
         claimedCompany: "Acme",
         companyWebsite: "acme.com",
         email: "recruiter@acme.com",
-        linkedin: { verification: "workplace", accountCreatedYear: 2010 },
+        linkedin: { verification: "workplace", postEngagement: "some" },
       },
       {}
     ),
@@ -190,8 +190,6 @@ async function main() {
   );
   check("classifier failure still allows critical", r15.risk_level === "critical_risk", `got ${r15.risk_level}`);
 
-  const thisYear = new Date().getFullYear();
-
   // 16. Not listed on the company's People page counts as one strong signal
   const r16 = await assess(
     { message: BENIGN, contactSource: "linkedin", linkedin: { listedOnCompanyPage: "no" } },
@@ -204,19 +202,20 @@ async function main() {
     `got ${r16.risk_level}`
   );
 
-  // 17. Brand-new account with zero activity + senior claim -> two strongs -> high
+  // 17. No posts + zero engagement → two soft signals → some_concerns
   const r17 = await assess(
     {
       message: BENIGN,
       contactSource: "linkedin",
-      linkedin: { accountCreatedYear: thisYear, activityLevel: "none" },
+      linkedin: { activityLevel: "none", postEngagement: "none" },
     },
-    { claimsSeniorRole: true }
+    {}
   );
   check(
-    "new silent account + senior claim -> high_risk",
-    r17.risk_level === "high_risk" &&
-      r17.findings.concerning.some((c) => c.id === "li_new_silent_account"),
+    "silent profile + no engagement -> some_concerns",
+    r17.risk_level === "some_concerns" &&
+      r17.findings.concerning.some((c) => c.id === "li_no_activity") &&
+      r17.findings.concerning.some((c) => c.id === "li_no_engagement"),
     `got ${r17.risk_level}`
   );
 
@@ -238,7 +237,8 @@ async function main() {
       contactSource: "linkedin",
       linkedin: {
         verification: "unknown", connections: "unknown", profileLocationMatches: "unknown",
-        activityLevel: "unknown", listedOnCompanyPage: "unknown", mutualConnections: "unknown",
+        activityLevel: "unknown", postEngagement: "unknown", listedOnCompanyPage: "unknown",
+        mutualConnections: "unknown",
       },
     },
     {}
@@ -259,7 +259,7 @@ async function main() {
       message: "Deposit 0.1 BTC to activate your work account.",
       contactSource: "linkedin",
       linkedin: {
-        verification: "identity", accountCreatedYear: 2012, activityLevel: "regular",
+        verification: "identity", activityLevel: "regular", postEngagement: "many",
         listedOnCompanyPage: "yes", mutualConnections: "yes", connections: "gt500",
       },
     },

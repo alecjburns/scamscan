@@ -42,16 +42,12 @@ function buildPayload(
   if (linkedInTouched(li)) {
     payload.linkedin = {};
     if (li.verification) payload.linkedin.verification = li.verification;
-    if (li.accountCreatedYear === "not_shown") payload.linkedin.accountCreatedYear = null;
-    else if (/^\d{4}$/.test(li.accountCreatedYear))
-      payload.linkedin.accountCreatedYear = Number(li.accountCreatedYear);
-    if (li.linkedinWarningShown)
-      payload.linkedin.linkedinWarningShown = li.linkedinWarningShown === "yes";
     if (li.profileEmployer.trim()) payload.linkedin.profileEmployer = li.profileEmployer.trim();
     if (li.connections) payload.linkedin.connections = li.connections;
     if (li.profileLocationMatches)
       payload.linkedin.profileLocationMatches = li.profileLocationMatches;
     if (li.activityLevel) payload.linkedin.activityLevel = li.activityLevel;
+    if (li.postEngagement) payload.linkedin.postEngagement = li.postEngagement;
     if (li.listedOnCompanyPage) payload.linkedin.listedOnCompanyPage = li.listedOnCompanyPage;
     if (li.mutualConnections) payload.linkedin.mutualConnections = li.mutualConnections;
   }

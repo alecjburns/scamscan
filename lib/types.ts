@@ -22,10 +22,12 @@ export type Signals = {
   classifierFailed?: boolean;
 };
 export type LinkedInAnswers = {
-  verification?: "none"|"identity"|"workplace"|"unknown"; accountCreatedYear?: number|null;
-  linkedinWarningShown?: boolean; profileEmployer?: string; connections?: "lt50"|"50to500"|"gt500"|"unknown";
+  verification?: "none"|"identity"|"workplace"|"unknown";
+  profileEmployer?: string; connections?: "lt50"|"50to500"|"gt500"|"unknown";
   profileLocationMatches?: "yes"|"no"|"unknown";
   activityLevel?: "none"|"some"|"regular"|"unknown";
+  /** Likes/comments on recent posts — more engagement is harder to fake. */
+  postEngagement?: "none"|"few"|"some"|"many"|"unknown";
   listedOnCompanyPage?: "yes"|"no"|"unknown";
   mutualConnections?: "yes"|"no"|"unknown";
 };

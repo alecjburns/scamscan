@@ -174,8 +174,7 @@ export async function assess(input: UserInput, signals: Signals): Promise<Report
   if (hasLinkedInAnswers) {
     checks_run.push("LinkedIn profile answers you reported");
     const li = scoreLinkedIn(
-      { ...input.linkedin, claimedHiringCompany: input.claimedCompany, claimsSeniorRole: signals.claimsSeniorRole },
-      new Date().getFullYear()
+      { ...input.linkedin, claimedHiringCompany: input.claimedCompany, claimsSeniorRole: signals.claimsSeniorRole }
     );
     strong.push(...li.strong);
     positive.push(...li.positive);

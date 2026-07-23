@@ -4,24 +4,22 @@ import { TapSelect, TextField } from "./fields";
 
 export type LinkedInState = {
   verification: "" | "none" | "identity" | "workplace" | "unknown";
-  accountCreatedYear: string;
-  linkedinWarningShown: "" | "yes" | "no";
   profileEmployer: string;
   connections: "" | "lt50" | "50to500" | "gt500" | "unknown";
   profileLocationMatches: "" | "yes" | "no" | "unknown";
   activityLevel: "" | "none" | "some" | "regular" | "unknown";
+  postEngagement: "" | "none" | "few" | "some" | "many" | "unknown";
   listedOnCompanyPage: "" | "yes" | "no" | "unknown";
   mutualConnections: "" | "yes" | "no" | "unknown";
 };
 
 export const EMPTY_LINKEDIN: LinkedInState = {
   verification: "",
-  accountCreatedYear: "",
-  linkedinWarningShown: "",
   profileEmployer: "",
   connections: "",
   profileLocationMatches: "",
   activityLevel: "",
+  postEngagement: "",
   listedOnCompanyPage: "",
   mutualConnections: "",
 };
@@ -47,13 +45,12 @@ export default function LinkedInCheck({
   onChange: (next: LinkedInState) => void;
 }) {
   const set = (patch: Partial<LinkedInState>) => onChange({ ...value, ...patch });
-  const yearIsNotShown = value.accountCreatedYear === "not_shown";
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted">
-        Open the profile → More → &ldquo;About this profile&rdquo; and tell us what you see.
-        &ldquo;Not sure&rdquo; never counts against you.
+        Open the profile and tell us what you see. Use More → &ldquo;About this profile&rdquo; for
+        location. &ldquo;Not sure&rdquo; never counts against you.
       </p>
 
       <TapSelect
@@ -68,50 +65,6 @@ export default function LinkedInCheck({
         ]}
       />
 
-      <fieldset>
-        <legend className="text-sm font-medium text-ink">Account created year?</legend>
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          <input
-            type="number"
-            inputMode="numeric"
-            min={2003}
-            max={new Date().getFullYear()}
-            value={yearIsNotShown ? "" : value.accountCreatedYear}
-            onChange={(e) => set({ accountCreatedYear: e.target.value })}
-            placeholder="e.g. 2019"
-            aria-label="Account created year"
-            className="min-h-10 w-28 rounded-[var(--radius-input)] border border-line bg-surface px-3 py-2 text-base text-ink placeholder:text-muted sm:min-h-0 sm:py-1.5 sm:text-sm"
-          />
-          <button
-            type="button"
-            role="radio"
-            aria-checked={yearIsNotShown}
-            onClick={() => set({ accountCreatedYear: yearIsNotShown ? "" : "not_shown" })}
-            className={`min-h-10 rounded-[var(--radius-pill)] border px-3 py-2 text-sm transition-colors sm:min-h-0 sm:py-1.5 ${
-              yearIsNotShown
-                ? "border-accent bg-accent text-white"
-                : "border-line bg-surface text-ink hover:border-accent"
-            }`}
-          >
-            Not shown
-          </button>
-        </div>
-      </fieldset>
-
-      <TapSelect
-        label="Did LinkedIn warn on this message?"
-        value={value.linkedinWarningShown}
-        onChange={(v) => set({ linkedinWarningShown: v })}
-        options={[
-          { value: "yes", label: "Yes" },
-          { value: "no", label: "No" },
-        ]}
-      />
-
-      <p className="border-t border-line pt-3 text-xs font-medium uppercase tracking-wide text-muted">
-        More about the profile
-      </p>
-
       <TapSelect
         label="Does the profile's location match where they claim to be based or hiring?"
         hint={"shown in \u201CAbout this profile\u201D"}
@@ -119,6 +72,7 @@ export default function LinkedInCheck({
         onChange={(v) => set({ profileLocationMatches: v })}
         options={YES_NO_UNSURE}
       />
+
       <TapSelect
         label="Posts and activity on the profile?"
         value={value.activityLevel}
@@ -130,6 +84,21 @@ export default function LinkedInCheck({
           { value: "unknown", label: "Not sure" },
         ]}
       />
+
+      <TapSelect
+        label="Engagement on recent posts?"
+        hint="likes or comments"
+        value={value.postEngagement}
+        onChange={(v) => set({ postEngagement: v })}
+        options={[
+          { value: "none", label: "0" },
+          { value: "few", label: "1–4" },
+          { value: "some", label: "5–20" },
+          { value: "many", label: "20+" },
+          { value: "unknown", label: "Not sure" },
+        ]}
+      />
+
       <TextField
         id="profileEmployer"
         label="Recruiter's employer on their profile"
