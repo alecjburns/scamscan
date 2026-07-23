@@ -40,14 +40,8 @@ function sanitizeInput(raw: unknown): UserInput | null {
     if (["none", "identity", "workplace", "unknown"].includes(li.verification as string))
       linkedin.verification = li.verification as NonNullable<UserInput["linkedin"]>["verification"];
     linkedin.profileEmployer = str(li.profileEmployer);
-    if (["lt50", "50to500", "gt500", "unknown"].includes(li.connections as string))
-      linkedin.connections = li.connections as NonNullable<UserInput["linkedin"]>["connections"];
     const ynu = ["yes", "no", "unknown"];
-    if (ynu.includes(li.profileLocationMatches as string))
-      linkedin.profileLocationMatches = li.profileLocationMatches as "yes" | "no" | "unknown";
-    if (["none", "some", "regular", "unknown"].includes(li.activityLevel as string))
-      linkedin.activityLevel = li.activityLevel as "none" | "some" | "regular" | "unknown";
-    if (["none", "few", "some", "many", "unknown"].includes(li.postEngagement as string))
+    if (["no_posts", "none", "few", "some", "many", "unknown"].includes(li.postEngagement as string))
       linkedin.postEngagement = li.postEngagement as NonNullable<UserInput["linkedin"]>["postEngagement"];
     if (ynu.includes(li.listedOnCompanyPage as string))
       linkedin.listedOnCompanyPage = li.listedOnCompanyPage as "yes" | "no" | "unknown";

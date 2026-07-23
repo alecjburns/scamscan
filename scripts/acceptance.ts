@@ -202,33 +202,56 @@ async function main() {
     `got ${r16.risk_level}`
   );
 
-  // 17. No posts + zero engagement → two soft signals → some_concerns
+  // 17. No visible posts is a soft concern
   const r17 = await assess(
     {
       message: BENIGN,
       contactSource: "linkedin",
-      linkedin: { activityLevel: "none", postEngagement: "none" },
+      linkedin: { postEngagement: "no_posts" },
     },
     {}
   );
   check(
-    "silent profile + no engagement -> some_concerns",
-    r17.risk_level === "some_concerns" &&
-      r17.findings.concerning.some((c) => c.id === "li_no_activity") &&
-      r17.findings.concerning.some((c) => c.id === "li_no_engagement"),
-    `got ${r17.risk_level}`
+    "no posts -> soft finding",
+    r17.findings.concerning.some((c) => c.id === "li_no_posts"),
+    `got ${r17.risk_level} ${JSON.stringify(r17.findings.concerning.map((c) => c.id))}`
   );
 
-  // 18. Two soft profile signals tip the ambiguous middle to some_concerns
+  // 18. Zero engagement is soft; with employer mismatch (strong) → high_risk
+  const r18a = await assess(
+    {
+      message: BENIGN,
+      contactSource: "linkedin",
+      linkedin: { postEngagement: "none" },
+    },
+    {}
+  );
+  check(
+    "zero engagement -> soft finding",
+    r18a.findings.concerning.some((c) => c.id === "li_no_engagement"),
+    JSON.stringify(r18a.findings.concerning.map((c) => c.id))
+  );
+
   const r18 = await assess(
     {
       message: BENIGN,
       contactSource: "linkedin",
-      linkedin: { profileLocationMatches: "no", connections: "lt50" },
+      claimedCompany: "Acme",
+      linkedin: {
+        profileEmployer: "OtherCorp Staffing",
+        listedOnCompanyPage: "no",
+        postEngagement: "none",
+      },
     },
     {}
   );
-  check("two soft LinkedIn signals -> some_concerns", r18.risk_level === "some_concerns", `got ${r18.risk_level}`);
+  check(
+    "employer mismatch + not on People page -> high_risk",
+    r18.risk_level === "high_risk" &&
+      r18.findings.concerning.some((c) => c.id === "li_employer_mismatch") &&
+      r18.findings.concerning.some((c) => c.id === "li_not_on_company_page"),
+    `got ${r18.risk_level}`
+  );
 
   // 19. "Not sure" answers contribute nothing
   const r19 = await assess(
@@ -236,8 +259,9 @@ async function main() {
       message: BENIGN,
       contactSource: "linkedin",
       linkedin: {
-        verification: "unknown", connections: "unknown", profileLocationMatches: "unknown",
-        activityLevel: "unknown", postEngagement: "unknown", listedOnCompanyPage: "unknown",
+        verification: "unknown",
+        postEngagement: "unknown",
+        listedOnCompanyPage: "unknown",
         mutualConnections: "unknown",
       },
     },
@@ -259,8 +283,10 @@ async function main() {
       message: "Deposit 0.1 BTC to activate your work account.",
       contactSource: "linkedin",
       linkedin: {
-        verification: "identity", activityLevel: "regular", postEngagement: "many",
-        listedOnCompanyPage: "yes", mutualConnections: "yes", connections: "gt500",
+        verification: "identity",
+        postEngagement: "many",
+        listedOnCompanyPage: "yes",
+        mutualConnections: "yes",
       },
     },
     { cryptoDeposit: true }

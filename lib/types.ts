@@ -23,11 +23,9 @@ export type Signals = {
 };
 export type LinkedInAnswers = {
   verification?: "none"|"identity"|"workplace"|"unknown";
-  profileEmployer?: string; connections?: "lt50"|"50to500"|"gt500"|"unknown";
-  profileLocationMatches?: "yes"|"no"|"unknown";
-  activityLevel?: "none"|"some"|"regular"|"unknown";
-  /** Likes/comments on recent posts — more engagement is harder to fake. */
-  postEngagement?: "none"|"few"|"some"|"many"|"unknown";
+  profileEmployer?: string;
+  /** Recent posts: no posts, 0 likes, light/solid engagement, or unsure. */
+  postEngagement?: "no_posts"|"none"|"few"|"some"|"many"|"unknown";
   listedOnCompanyPage?: "yes"|"no"|"unknown";
   mutualConnections?: "yes"|"no"|"unknown";
 };

@@ -18,11 +18,23 @@ const EXAMPLE = {
   contactSource: "linkedin" as const,
 };
 
-const CHANNEL_HEADING: Record<ContactSource, string> = {
-  linkedin: "LinkedIn details",
-  email: "Email details",
-  whatsapp: "WhatsApp / text details",
-  other: "More details",
+const CHANNEL_META: Record<ContactSource, { title: string; hint: string }> = {
+  linkedin: {
+    title: "About this LinkedIn approach",
+    hint: "Glance at the profile — skip anything you're unsure of.",
+  },
+  email: {
+    title: "About this email",
+    hint: "The sender address and any links help most.",
+  },
+  whatsapp: {
+    title: "About this WhatsApp / text",
+    hint: "Paste links here instead of tapping them.",
+  },
+  other: {
+    title: "A few more details",
+    hint: "Add whatever you have — skip the rest.",
+  },
 };
 
 function buildPayload(
@@ -43,10 +55,6 @@ function buildPayload(
     payload.linkedin = {};
     if (li.verification) payload.linkedin.verification = li.verification;
     if (li.profileEmployer.trim()) payload.linkedin.profileEmployer = li.profileEmployer.trim();
-    if (li.connections) payload.linkedin.connections = li.connections;
-    if (li.profileLocationMatches)
-      payload.linkedin.profileLocationMatches = li.profileLocationMatches;
-    if (li.activityLevel) payload.linkedin.activityLevel = li.activityLevel;
     if (li.postEngagement) payload.linkedin.postEngagement = li.postEngagement;
     if (li.listedOnCompanyPage) payload.linkedin.listedOnCompanyPage = li.listedOnCompanyPage;
     if (li.mutualConnections) payload.linkedin.mutualConnections = li.mutualConnections;
@@ -102,7 +110,7 @@ export default function ScanForm() {
       if (res.status === 429) {
         const data = await res.json().catch(() => null);
         setError(
-          data?.error ?? "Too many scans in a short time — please wait a minute and try again."
+          data?.error ?? "Too many scans from your connection — please wait a minute and try again."
         );
         return;
       }
@@ -125,7 +133,9 @@ export default function ScanForm() {
   function focusDetails() {
     requestAnimationFrame(() => {
       detailsRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      (emailRef.current ?? linkRef.current)?.focus();
+      if (contactSource === "whatsapp") linkRef.current?.focus();
+      else if (contactSource === "email") emailRef.current?.focus();
+      else (emailRef.current ?? linkRef.current)?.focus();
     });
   }
 
@@ -157,12 +167,14 @@ export default function ScanForm() {
   const showNudge = report?.confidence === "low" && thinSubmission;
   const nudgeCopy =
     contactSource === "email"
-      ? "Add the sender's email or the company's website to raise confidence →"
+      ? "Add the sender's email to raise confidence →"
       : contactSource === "whatsapp"
-        ? "Add a link they sent or the company's website to raise confidence →"
+        ? "Add a link they sent to raise confidence →"
         : contactSource === "linkedin"
-          ? "Add profile answers or the company's website to raise confidence →"
-          : "Add an email, link, or company website to raise confidence →";
+          ? "Add a couple of profile answers or the company website →"
+          : "Add an email, link, or company website →";
+
+  const channelMeta = contactSource ? CHANNEL_META[contactSource] : null;
 
   return (
     <div className="space-y-5 sm:space-y-6">
@@ -199,7 +211,7 @@ export default function ScanForm() {
               setMessage(e.target.value);
               if (formError) setFormError(null);
             }}
-            rows={6}
+            rows={5}
             placeholder="The full message you received."
             className="mt-1.5 w-full resize-y rounded-[var(--radius-input)] border border-line bg-bg px-3 py-2.5 text-base leading-relaxed text-ink placeholder:text-muted sm:text-[15px]"
           />
@@ -223,43 +235,48 @@ export default function ScanForm() {
           />
         </div>
 
-        <div className="mt-5">
-          <label htmlFor="claimedCompany" className="text-sm font-medium text-ink">
-            Company they claim to be from
-          </label>
-          <input
-            id="claimedCompany"
-            type="text"
-            value={claimedCompany}
-            onChange={(e) => setClaimedCompany(e.target.value)}
-            placeholder="e.g. Acme Corp"
-            className="mt-1.5 w-full rounded-[var(--radius-input)] border border-line bg-surface px-3 py-2.5 text-base text-ink placeholder:text-muted sm:py-2 sm:text-[15px]"
-          />
-          {contactSource === "linkedin" && !claimedCompany.trim() && (
-            <p className="mt-1.5 text-xs text-muted">
-              Helps check whether their profile employer matches who they say they&rsquo;re hiring
-              for.
-            </p>
-          )}
-        </div>
-
-        {contactSource && (
+        {contactSource && channelMeta && (
           <div ref={detailsRef} className="mt-6 space-y-4 border-t border-line pt-5">
-            <h2 className="font-[family-name:var(--font-display)] text-sm font-medium text-ink">
-              {CHANNEL_HEADING[contactSource]}
-            </h2>
+            <div>
+              <h2 className="font-[family-name:var(--font-display)] text-sm font-medium text-ink">
+                {channelMeta.title}
+              </h2>
+              <p className="mt-1 text-sm text-muted">{channelMeta.hint}</p>
+            </div>
 
-            {contactSource === "linkedin" && (
-              <LinkedInCheck value={linkedin} onChange={setLinkedin} />
+            {contactSource === "linkedin" ? (
+              <>
+                <ChannelDetails
+                  source="linkedin"
+                  value={deeper}
+                  onChange={setDeeper}
+                  claimedCompany={claimedCompany}
+                  onClaimedCompanyChange={setClaimedCompany}
+                  linkedinPart="company"
+                />
+                <LinkedInCheck value={linkedin} onChange={setLinkedin} />
+                <ChannelDetails
+                  source="linkedin"
+                  value={deeper}
+                  onChange={setDeeper}
+                  claimedCompany={claimedCompany}
+                  onClaimedCompanyChange={setClaimedCompany}
+                  emailRef={emailRef}
+                  linkRef={linkRef}
+                  linkedinPart="message"
+                />
+              </>
+            ) : (
+              <ChannelDetails
+                source={contactSource}
+                value={deeper}
+                onChange={setDeeper}
+                claimedCompany={claimedCompany}
+                onClaimedCompanyChange={setClaimedCompany}
+                emailRef={emailRef}
+                linkRef={linkRef}
+              />
             )}
-
-            <ChannelDetails
-              source={contactSource}
-              value={deeper}
-              onChange={setDeeper}
-              emailRef={emailRef}
-              linkRef={linkRef}
-            />
           </div>
         )}
 
@@ -278,10 +295,9 @@ export default function ScanForm() {
         </button>
 
         <p className="mt-4 text-xs leading-relaxed text-muted">
-          The message text is sent once to Anthropic&rsquo;s Claude API to classify wording
-          patterns. ScamScan does not store what you paste, create accounts, or scrape LinkedIn.{" "}
+          Message text goes once to Anthropic (Claude). Nothing is stored.{" "}
           <a href="/privacy" className="text-accent-ink underline decoration-line underline-offset-2">
-            Privacy details
+            Privacy
           </a>
         </p>
       </form>

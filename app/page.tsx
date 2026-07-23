@@ -15,22 +15,16 @@ export default function Home() {
           Paste the message. Get an evidence-backed read on whether the approach looks genuine,
           suspicious, or dangerous.
         </p>
-        <div className="mt-4 space-y-2 border-l-2 border-accent/40 pl-3 text-sm leading-relaxed text-muted">
-          <p>
-            Don&rsquo;t paste ID documents, bank details, or passwords — just the recruiter&rsquo;s
-            message and any links.
-          </p>
-          <p>
-            The message text is sent once to Anthropic (Claude) for classification. We don&rsquo;t
-            store it, and we never scrape LinkedIn.{" "}
-            <a
-              href="/privacy"
-              className="text-accent-ink underline decoration-line underline-offset-2"
-            >
-              How privacy works
-            </a>
-          </p>
-        </div>
+        <p className="mt-3 max-w-[34rem] text-sm leading-relaxed text-muted">
+          Don&rsquo;t paste IDs, bank details, or passwords. Message text goes once to Anthropic
+          (Claude); we don&rsquo;t store it.{" "}
+          <a
+            href="/privacy"
+            className="text-accent-ink underline decoration-line underline-offset-2"
+          >
+            Privacy
+          </a>
+        </p>
       </header>
 
       <div className="ss-rise ss-rise-delay-1 mt-6 sm:mt-8">
