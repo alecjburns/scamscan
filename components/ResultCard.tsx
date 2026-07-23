@@ -5,10 +5,9 @@ import { Finding, Report } from "@/lib/types";
 import RiskBadge from "./RiskBadge";
 
 const CONFIDENCE_COPY: Record<Report["confidence"], string> = {
-  high: "High confidence — the extra details you provided corroborate the message-level evidence.",
-  medium:
-    "Medium confidence — the evidence is consistent, but we never call anything definitively safe.",
-  low: "Low confidence — we had little beyond the message text to work with.",
+  high: "Higher confidence — your extra details backed up the message-level signals.",
+  medium: "Medium confidence — consistent signals, but we never call anything definitively safe.",
+  low: "Lower confidence — we had little beyond the message text.",
 };
 
 function FindingList({
@@ -42,20 +41,62 @@ function FindingList({
   );
 }
 
+function GuidanceLists({ report }: { report: Report }) {
+  const { do: dos, dont } = report.guidance;
+  return (
+    <div className="mt-6 border-t border-line pt-5">
+      <h3 className="font-[family-name:var(--font-display)] text-sm font-medium tracking-wide text-ink">
+        What to do next
+      </h3>
+      <p className="mt-2 text-[15px] leading-relaxed text-ink">{report.recommended_action}</p>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="rounded-[var(--radius-input)] border border-line bg-bg/60 px-3.5 py-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-accent-ink">Do</p>
+          <ul className="mt-2 space-y-2">
+            {dos.map((item) => (
+              <li key={item} className="flex gap-2 text-sm leading-relaxed text-ink">
+                <span className="mt-0.5 shrink-0 font-medium text-accent" aria-hidden="true">
+                  ✓
+                </span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-[var(--radius-input)] border border-line bg-bg/60 px-3.5 py-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-[var(--r-high)]">Don&rsquo;t</p>
+          <ul className="mt-2 space-y-2">
+            {dont.map((item) => (
+              <li key={item} className="flex gap-2 text-sm leading-relaxed text-ink">
+                <span className="mt-0.5 shrink-0 font-medium text-[var(--r-high)]" aria-hidden="true">
+                  ✕
+                </span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ResultCard({ report }: { report: Report }) {
   const [feedback, setFeedback] = useState<"up" | "down" | null>(null);
   const [feedbackNote, setFeedbackNote] = useState("");
   const [feedbackSent, setFeedbackSent] = useState(false);
   const [feedbackBusy, setFeedbackBusy] = useState(false);
 
-  const showLinkedInReportLine =
-    report.is_linkedin &&
-    (report.risk_level === "high_risk" || report.risk_level === "critical_risk");
-
   const sparseFindings =
     report.findings.concerning.length === 0 &&
     report.findings.positive.length === 0 &&
     report.findings.unverified.length <= 1;
+
+  const concerningTitle =
+    report.risk_level === "high_risk" || report.risk_level === "critical_risk"
+      ? "Red flags"
+      : "Concerns";
 
   async function sendFeedback() {
     if (!feedback || feedbackBusy) return;
@@ -99,17 +140,17 @@ export default function ResultCard({ report }: { report: Report }) {
 
       <div className="mt-6 space-y-6">
         <FindingList
-          title="Why this was flagged"
+          title={concerningTitle}
           items={report.findings.concerning}
           markerColor="var(--r-high)"
         />
         <FindingList
-          title="In its favour"
+          title="Looking okay"
           items={report.findings.positive}
           markerColor="var(--accent)"
         />
         <FindingList
-          title="Couldn't verify"
+          title="Gaps"
           items={report.findings.unverified}
           markerColor="var(--muted)"
         />
@@ -133,20 +174,7 @@ export default function ResultCard({ report }: { report: Report }) {
         )}
       </div>
 
-      <div className="mt-6 border-t border-line pt-5">
-        <h3 className="font-[family-name:var(--font-display)] text-sm font-medium tracking-wide text-ink">
-          What to do
-        </h3>
-        <p className="mt-2 text-[15px] font-semibold leading-relaxed text-ink">
-          {report.recommended_action}
-        </p>
-        {showLinkedInReportLine && (
-          <p className="mt-3 text-sm text-muted">
-            On the LinkedIn message, open <strong className="text-ink">More → Report</strong> — you
-            can report it without notifying the sender.
-          </p>
-        )}
-      </div>
+      <GuidanceLists report={report} />
 
       <div className="mt-6 border-t border-line pt-4">
         {feedbackSent ? (

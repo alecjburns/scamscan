@@ -8,7 +8,7 @@ import { checkLimits, recordRejection, recordScan } from "@/lib/usage";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-const MODEL = process.env.SCAMSCAN_MODEL ?? "claude-sonnet-5";
+const MODEL = process.env.SCAMSCAN_MODEL ?? "claude-haiku-4-5";
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? "" });
 
 const LIMIT_MESSAGES: Record<string, string> = {
@@ -79,8 +79,14 @@ export async function POST(req: NextRequest) {
       const msg = await anthropic.messages.create(
         {
           model: MODEL,
-          max_tokens: 700,
-          system: CLASSIFIER_SYSTEM,
+          max_tokens: 450,
+          system: [
+            {
+              type: "text",
+              text: CLASSIFIER_SYSTEM,
+              cache_control: { type: "ephemeral" },
+            },
+          ],
           messages: [{ role: "user", content: input.message }],
         },
         { timeout: 18_000, maxRetries: 0 }

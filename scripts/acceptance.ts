@@ -373,8 +373,23 @@ async function main() {
     "classifier fail + coverage nudges retry",
     r28.risk_level === "insufficient_evidence" &&
       /scan again/i.test(r28.recommended_action) &&
-      r28.classifier_failed === true,
+      r28.classifier_failed === true &&
+      r28.guidance.do.length > 0 &&
+      r28.guidance.dont.length > 0,
     r28.recommended_action
+  );
+
+  // 29. High-risk guidance always includes hard don'ts
+  const r29 = await assess(
+    { message: BENIGN },
+    { cryptoDeposit: true }
+  );
+  check(
+    "critical guidance has do/dont lists",
+    r29.risk_level === "critical_risk" &&
+      r29.guidance.dont.some((d) => /money|crypto|password/i.test(d)) &&
+      r29.guidance.do.length >= 1,
+    JSON.stringify(r29.guidance)
   );
 
   console.log(failures ? `\n${failures} failure(s)` : "\nAll acceptance checks passed");

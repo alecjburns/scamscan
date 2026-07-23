@@ -21,7 +21,7 @@ Add your Anthropic key to `.env.local` (never exposed to the client):
 
 ```
 ANTHROPIC_API_KEY=sk-...
-SCAMSCAN_MODEL=claude-sonnet-5     # or claude-haiku-4-5 to cut cost
+SCAMSCAN_MODEL=claude-haiku-4-5   # structured signal JSON — Haiku is ~3× cheaper than Sonnet; override if needed
 SCAMSCAN_IP_PER_MINUTE=5
 SCAMSCAN_GLOBAL_PER_MINUTE=10
 SCAMSCAN_DAILY_CAP=1000

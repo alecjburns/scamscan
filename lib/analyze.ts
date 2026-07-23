@@ -239,42 +239,106 @@ export async function assess(input: UserInput, signals: Signals): Promise<Report
   else if (risk_level === "insufficient_evidence") confidence = "low";
   else confidence = coverage >= 2 ? "medium" : "low";
 
+  const advice = buildGuidance(risk_level, isLinkedIn, {
+    classifierFailed: Boolean(signals.classifierFailed),
+    coverage,
+  });
+
   return {
     risk_level,
     confidence,
     is_linkedin: isLinkedIn,
     findings: { concerning, positive, unverified },
-    recommended_action: recommend(risk_level, isLinkedIn, {
-      classifierFailed: Boolean(signals.classifierFailed),
-      coverage,
-    }),
+    recommended_action: advice.summary,
+    guidance: { do: advice.do, dont: advice.dont },
     checks_run,
     classifier_failed: Boolean(signals.classifierFailed) || undefined,
   };
 }
 
-function recommend(
+function buildGuidance(
   level: RiskLevel,
   isLinkedIn: boolean,
   opts: { classifierFailed: boolean; coverage: number }
-): string {
-  // LinkedIn Report tip is shown separately in the result UI for high/critical —
-  // keep it out of this string to avoid duplication.
-  void isLinkedIn;
+): { summary: string; do: string[]; dont: string[] } {
+  const reportOnLinkedIn = isLinkedIn
+    ? "On LinkedIn: More → Report (you can report without notifying them)"
+    : null;
+
   switch (level) {
     case "critical_risk":
     case "high_risk":
-      return "Don't reply, click any link, or send money or documents. To check the role is real, contact the company through the official website you find yourself — not any link or number in the message.";
+      return {
+        summary:
+          "Stop engaging with this approach. Verify anything that still looks real only through channels you find yourself.",
+        do: [
+          "Find the company yourself (search / official site) and contact careers or HR that way",
+          reportOnLinkedIn,
+          "Keep a copy of the message if you may report it later",
+        ].filter((x): x is string => Boolean(x)),
+        dont: [
+          "Don't reply, click links, or open attachments from the message",
+          "Don't send money, crypto, ID documents, passwords, or one-time codes",
+          "Don't move the chat to WhatsApp, Telegram, or SMS because they asked",
+        ],
+      };
     case "some_concerns":
-      return "Treat this with caution. Verify the recruiter and role independently through the company's official site before sharing anything or clicking links.";
+      return {
+        summary:
+          "Treat this carefully — verify independently before you share anything or click links.",
+        do: [
+          "Check the company on its official website (not a link they sent)",
+          "Prefer a corporate email domain or a video call you set up",
+          reportOnLinkedIn && "If it still feels wrong, report the LinkedIn message (More → Report)",
+        ].filter((x): x is string => Boolean(x)),
+        dont: [
+          "Don't click application or calendar links from the message yet",
+          "Don't share bank details, ID, or login credentials",
+          "Don't pay for equipment, training, or 'onboarding' fees",
+        ],
+      };
     case "low_apparent_risk":
-      return "We found no significant risk indicators in what you provided — but this doesn't confirm the opportunity is genuine. Still verify the recruiter and role through the company's official channels before sharing personal information.";
+      return {
+        summary:
+          "No major red flags in what you provided — that still isn't proof the role is real.",
+        do: [
+          "Confirm the recruiter and role via the company's official careers page or phone",
+          "Use contact details you find yourself, not only what was in the message",
+        ],
+        dont: [
+          "Don't treat this result as confirmation the opportunity is genuine",
+          "Don't skip checks because nothing looked suspicious",
+          "Don't share sensitive personal info until you've verified independently",
+        ],
+      };
     default:
       if (opts.classifierFailed) {
-        return opts.coverage > 0
-          ? "The AI wording check failed this time, so we can't clear or escalate based on the message text. Hit Scan again in a moment — your other details are already filled in."
-          : "The AI wording check failed this time. Try scanning again in a moment. Adding an email, link, or company website also helps if the wording check is unavailable.";
+        return {
+          summary:
+            opts.coverage > 0
+              ? "The AI wording check failed this time, so we can't clear or escalate based on the message text. Hit Scan again in a moment — your other details are already filled in."
+              : "The AI wording check failed this time. Try scanning again in a moment. Adding an email, link, or company website also helps if the wording check is unavailable.",
+          do: [
+            "Scan again in a moment",
+            opts.coverage === 0 ? "Add a sender email, link, or company website if you have one" : null,
+          ].filter((x): x is string => Boolean(x)),
+          dont: [
+            "Don't assume the approach is safe just because this scan couldn't finish",
+            "Don't click links or send documents while you're waiting",
+          ],
+        };
       }
-      return "There wasn't enough here to assess. Paste the full message and add the sender's email or the application link for a useful check.";
+      return {
+        summary:
+          "There wasn't enough here to assess. Paste the full message and add the sender's email or the application link for a useful check.",
+        do: [
+          "Paste the full message (not a short snippet)",
+          "Add the sender's email, a link they sent, or the company website",
+        ],
+        dont: [
+          "Don't assume no result means low risk",
+          "Don't reply or click links until you've got a clearer scan",
+        ],
+      };
   }
 }

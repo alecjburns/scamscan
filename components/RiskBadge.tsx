@@ -1,7 +1,12 @@
 import type { ReactElement } from "react";
 import { RiskLevel } from "@/lib/types";
 
-type BadgeConfig = { label: string; cssVar: string; icon: ReactElement };
+type BadgeConfig = {
+  label: string;
+  blurb: string;
+  cssVar: string;
+  icon: ReactElement;
+};
 
 const icon = (path: ReactElement) => (
   <svg
@@ -20,7 +25,8 @@ const icon = (path: ReactElement) => (
 
 const CONFIG: Record<RiskLevel, BadgeConfig> = {
   insufficient_evidence: {
-    label: "Insufficient evidence",
+    label: "Need more to go on",
+    blurb: "Not enough to judge this approach yet.",
     cssVar: "--r-insufficient",
     icon: icon(
       <>
@@ -31,17 +37,19 @@ const CONFIG: Record<RiskLevel, BadgeConfig> = {
     ),
   },
   low_apparent_risk: {
-    label: "Low apparent risk",
+    label: "No major red flags",
+    blurb: "Still verify independently — this is not a green light.",
     cssVar: "--r-low",
     icon: icon(
       <>
         <path d="M10 2.75 16.25 5v4.5c0 4-2.6 6.7-6.25 7.75C6.35 16.2 3.75 13.5 3.75 9.5V5L10 2.75Z" />
-        <path d="M7 10h6" />
+        <path d="M7.25 10.1 9.1 12l3.7-4" />
       </>
     ),
   },
   some_concerns: {
-    label: "Some concerns",
+    label: "Proceed with caution",
+    blurb: "Some warning signs — verify before you engage further.",
     cssVar: "--r-concern",
     icon: icon(
       <>
@@ -52,7 +60,8 @@ const CONFIG: Record<RiskLevel, BadgeConfig> = {
     ),
   },
   high_risk: {
-    label: "High risk",
+    label: "High risk — stop",
+    blurb: "Strong scam patterns. Don't engage with this approach.",
     cssVar: "--r-high",
     icon: icon(
       <>
@@ -63,7 +72,8 @@ const CONFIG: Record<RiskLevel, BadgeConfig> = {
     ),
   },
   critical_risk: {
-    label: "Critical risk",
+    label: "Critical — stop now",
+    blurb: "Clear danger signals (payment, credentials, or lookalike domains).",
     cssVar: "--r-critical",
     icon: icon(
       <>
@@ -80,18 +90,21 @@ const CONFIG: Record<RiskLevel, BadgeConfig> = {
 };
 
 export default function RiskBadge({ level }: { level: RiskLevel }) {
-  const { label, cssVar, icon } = CONFIG[level];
+  const { label, blurb, cssVar, icon } = CONFIG[level];
   return (
-    <span
-      className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] border px-3.5 py-1.5 text-sm font-medium"
-      style={{
-        color: `var(${cssVar})`,
-        borderColor: `color-mix(in srgb, var(${cssVar}) 35%, transparent)`,
-        backgroundColor: `color-mix(in srgb, var(${cssVar}) 7%, var(--surface))`,
-      }}
-    >
-      {icon}
-      {label}
-    </span>
+    <div className="space-y-1.5">
+      <span
+        className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] border px-3.5 py-1.5 text-sm font-medium"
+        style={{
+          color: `var(${cssVar})`,
+          borderColor: `color-mix(in srgb, var(${cssVar}) 35%, transparent)`,
+          backgroundColor: `color-mix(in srgb, var(${cssVar}) 7%, var(--surface))`,
+        }}
+      >
+        {icon}
+        {label}
+      </span>
+      <p className="text-sm leading-relaxed text-muted">{blurb}</p>
+    </div>
   );
 }

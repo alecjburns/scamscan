@@ -2,10 +2,18 @@ export type RiskLevel = "insufficient_evidence"|"low_apparent_risk"|"some_concer
 export type Confidence = "low"|"medium"|"high";
 export type ContactSource = "linkedin"|"email"|"whatsapp"|"other";
 export type Finding = { id: string; explanation: string };
+export type ActionGuidance = {
+  do: string[];
+  dont: string[];
+};
 export type Report = {
   risk_level: RiskLevel; confidence: Confidence;
   findings: { concerning: Finding[]; positive: Finding[]; unverified: Finding[] };
-  recommended_action: string; is_linkedin: boolean;
+  /** One-line summary of what to do next. */
+  recommended_action: string;
+  /** Short, scannable next steps. */
+  guidance: ActionGuidance;
+  is_linkedin: boolean;
   /** Plain-language list of what was examined — shown when findings are sparse. */
   checks_run: string[];
   /** True when the Anthropic wording classifier was skipped or failed. */
