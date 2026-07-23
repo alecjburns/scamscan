@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { assess } from "@/lib/analyze";
+import { applyExtractedContacts } from "@/lib/extract";
 import { CLASSIFIER_SYSTEM, parseSignals, sanitizeSignals } from "@/lib/prompt";
 import { Signals, UserInput } from "@/lib/types";
 import { checkLimits, recordRejection, recordScan } from "@/lib/usage";
@@ -37,14 +38,14 @@ function sanitizeInput(raw: unknown): UserInput | null {
   if (r.linkedin && typeof r.linkedin === "object") {
     const li = r.linkedin as Record<string, unknown>;
     const linkedin: NonNullable<UserInput["linkedin"]> = {};
-    if (["none", "identity", "workplace", "unknown"].includes(li.verification as string))
+    if (["none", "premium", "verified", "unknown"].includes(li.verification as string))
       linkedin.verification = li.verification as NonNullable<UserInput["linkedin"]>["verification"];
     linkedin.profileEmployer = str(li.profileEmployer);
     const ynu = ["yes", "no", "unknown"];
-    if (["no_posts", "none", "few", "some", "many", "unknown"].includes(li.postEngagement as string))
+    if (ynu.includes(li.hasPosts as string))
+      linkedin.hasPosts = li.hasPosts as "yes" | "no" | "unknown";
+    if (["none", "few", "some", "many", "unknown"].includes(li.postEngagement as string))
       linkedin.postEngagement = li.postEngagement as NonNullable<UserInput["linkedin"]>["postEngagement"];
-    if (ynu.includes(li.listedOnCompanyPage as string))
-      linkedin.listedOnCompanyPage = li.listedOnCompanyPage as "yes" | "no" | "unknown";
     if (ynu.includes(li.mutualConnections as string))
       linkedin.mutualConnections = li.mutualConnections as "yes" | "no" | "unknown";
     if (Object.values(linkedin).some((v) => v !== undefined)) input.linkedin = linkedin;
@@ -61,6 +62,7 @@ export async function POST(req: NextRequest) {
 
   const input = sanitizeInput(body);
   if (!input) return NextResponse.json({ error: "message required" }, { status: 400 });
+  const enriched = applyExtractedContacts(input);
 
   // Rate-limit only after validation so junk POSTs don't burn the budget.
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
@@ -87,7 +89,7 @@ export async function POST(req: NextRequest) {
               cache_control: { type: "ephemeral" },
             },
           ],
-          messages: [{ role: "user", content: input.message }],
+          messages: [{ role: "user", content: enriched.message }],
         },
         { timeout: 18_000, maxRetries: 0 }
       );
@@ -123,7 +125,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const report = await assess(input, signals);
+  const report = await assess(enriched, signals);
   const durationMs = Date.now() - started;
   const classifierFailed = Boolean(signals.classifierFailed);
   recordScan({ riskLevel: report.risk_level, classifierUsed, classifierFailed, durationMs });
@@ -134,7 +136,7 @@ export async function POST(req: NextRequest) {
       risk: report.risk_level,
       confidence: report.confidence,
       linkedin: report.is_linkedin,
-      source: input.contactSource ?? null,
+      source: enriched.contactSource ?? null,
       classifierUsed,
       classifierFailed,
       classifierError,

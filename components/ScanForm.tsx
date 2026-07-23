@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ContactSource, Report, UserInput } from "@/lib/types";
+import { extractContactsFromMessage } from "@/lib/extract";
 import ChannelDetails, { DeeperState, EMPTY_DEEPER } from "./DeeperCheck";
 import LinkedInCheck, {
   EMPTY_LINKEDIN,
@@ -13,7 +14,7 @@ import { TapSelect } from "./fields";
 
 const EXAMPLE = {
   message:
-    "Hello! I'm a senior talent partner at Novatech Solutions. Your profile stood out and we'd love to offer you a remote Data Annotation role at $42/hr — no interview needed, you can start this week. To secure your spot, message me on WhatsApp at +1 (555) 013-4477 within 24 hours and we'll send your onboarding kit.",
+    "Hello! I'm a senior talent partner at Novatech Solutions. Your profile stood out and we'd love to offer you a remote Data Annotation role at $42/hr — no interview needed, you can start this week. To secure your spot, message me on WhatsApp at +1 (555) 013-4477 within 24 hours: https://bit.ly/novatech-start — or email anna@novatech-jobs.com.",
   claimedCompany: "Novatech Solutions",
   contactSource: "linkedin" as const,
 };
@@ -21,15 +22,15 @@ const EXAMPLE = {
 const CHANNEL_META: Record<ContactSource, { title: string; hint: string }> = {
   linkedin: {
     title: "About this LinkedIn approach",
-    hint: "Glance at the profile — skip anything you're unsure of.",
+    hint: "Quick profile glances only — skip anything you're unsure of.",
   },
   email: {
     title: "About this email",
-    hint: "The sender address and any links help most.",
+    hint: "Sender address helps most. Links in the paste are picked up automatically.",
   },
   whatsapp: {
     title: "About this WhatsApp / text",
-    hint: "Paste links here instead of tapping them.",
+    hint: "Don't tap links — paste the chat and we'll pick them up when we can.",
   },
   other: {
     title: "A few more details",
@@ -55,8 +56,9 @@ function buildPayload(
     payload.linkedin = {};
     if (li.verification) payload.linkedin.verification = li.verification;
     if (li.profileEmployer.trim()) payload.linkedin.profileEmployer = li.profileEmployer.trim();
-    if (li.postEngagement) payload.linkedin.postEngagement = li.postEngagement;
-    if (li.listedOnCompanyPage) payload.linkedin.listedOnCompanyPage = li.listedOnCompanyPage;
+    if (li.hasPosts) payload.linkedin.hasPosts = li.hasPosts;
+    if (li.hasPosts === "yes" && li.postEngagement)
+      payload.linkedin.postEngagement = li.postEngagement;
     if (li.mutualConnections) payload.linkedin.mutualConnections = li.mutualConnections;
   }
   return payload;
@@ -80,6 +82,24 @@ export default function ScanForm() {
   const resultRef = useRef<HTMLDivElement>(null);
   const messageRef = useRef<HTMLTextAreaElement>(null);
   const detailsRef = useRef<HTMLDivElement>(null);
+
+  const extracted = useMemo(() => extractContactsFromMessage(message), [message]);
+  const extractedHint = useMemo(() => {
+    const bits: string[] = [];
+    if (extracted.links[0]) bits.push("a link");
+    if (extracted.emails[0]) bits.push("an email");
+    if (!bits.length) return null;
+    return `Found ${bits.join(" and ")} in the pasted message — we'll use ${bits.length === 1 ? "it" : "them"} automatically.`;
+  }, [extracted]);
+
+  function syncExtractedIntoDeeper(nextMessage: string, current: DeeperState): DeeperState {
+    const found = extractContactsFromMessage(nextMessage);
+    const next = { ...current };
+    // Only auto-fill empty fields so manual edits stick.
+    if (!next.applicationLink.trim() && found.links[0]) next.applicationLink = found.links[0];
+    if (!next.email.trim() && found.emails[0]) next.email = found.emails[0];
+    return next;
+  }
 
   async function scan() {
     if (!message.trim()) {
@@ -143,6 +163,7 @@ export default function ScanForm() {
     setMessage(EXAMPLE.message);
     setClaimedCompany(EXAMPLE.claimedCompany);
     setContactSource(EXAMPLE.contactSource);
+    setDeeper(syncExtractedIntoDeeper(EXAMPLE.message, EMPTY_DEEPER));
     setReport(null);
     setError(null);
     setFormError(null);
@@ -167,12 +188,12 @@ export default function ScanForm() {
   const showNudge = report?.confidence === "low" && thinSubmission;
   const nudgeCopy =
     contactSource === "email"
-      ? "Add the sender's email to raise confidence →"
+      ? "Add the sender's From: address to raise confidence →"
       : contactSource === "whatsapp"
-        ? "Add a link they sent to raise confidence →"
+        ? "Add a link from the chat (or paste one into the message) →"
         : contactSource === "linkedin"
-          ? "Add a couple of profile answers or the company website →"
-          : "Add an email, link, or company website →";
+          ? "Answer a couple of profile questions →"
+          : "Add an email or link if you have one →";
 
   const channelMeta = contactSource ? CHANNEL_META[contactSource] : null;
 
@@ -208,7 +229,9 @@ export default function ScanForm() {
             required
             value={message}
             onChange={(e) => {
-              setMessage(e.target.value);
+              const next = e.target.value;
+              setMessage(next);
+              setDeeper((d) => syncExtractedIntoDeeper(next, d));
               if (formError) setFormError(null);
             }}
             rows={5}
@@ -247,24 +270,16 @@ export default function ScanForm() {
             {contactSource === "linkedin" ? (
               <>
                 <ChannelDetails
-                  source="linkedin"
-                  value={deeper}
-                  onChange={setDeeper}
-                  claimedCompany={claimedCompany}
-                  onClaimedCompanyChange={setClaimedCompany}
-                  linkedinPart="company"
-                />
-                <LinkedInCheck value={linkedin} onChange={setLinkedin} />
-                <ChannelDetails
-                  source="linkedin"
+                  source={contactSource}
                   value={deeper}
                   onChange={setDeeper}
                   claimedCompany={claimedCompany}
                   onClaimedCompanyChange={setClaimedCompany}
                   emailRef={emailRef}
                   linkRef={linkRef}
-                  linkedinPart="message"
+                  extractedHint={extractedHint}
                 />
+                <LinkedInCheck value={linkedin} onChange={setLinkedin} />
               </>
             ) : (
               <ChannelDetails
@@ -275,6 +290,7 @@ export default function ScanForm() {
                 onClaimedCompanyChange={setClaimedCompany}
                 emailRef={emailRef}
                 linkRef={linkRef}
+                extractedHint={extractedHint}
               />
             )}
           </div>

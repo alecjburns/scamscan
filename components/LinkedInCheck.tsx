@@ -3,18 +3,18 @@
 import { TapSelect, TextField } from "./fields";
 
 export type LinkedInState = {
-  verification: "" | "none" | "identity" | "workplace" | "unknown";
+  verification: "" | "none" | "premium" | "verified" | "unknown";
   profileEmployer: string;
-  postEngagement: "" | "no_posts" | "none" | "few" | "some" | "many" | "unknown";
-  listedOnCompanyPage: "" | "yes" | "no" | "unknown";
+  hasPosts: "" | "yes" | "no" | "unknown";
+  postEngagement: "" | "none" | "few" | "some" | "many" | "unknown";
   mutualConnections: "" | "yes" | "no" | "unknown";
 };
 
 export const EMPTY_LINKEDIN: LinkedInState = {
   verification: "",
   profileEmployer: "",
+  hasPosts: "",
   postEngagement: "",
-  listedOnCompanyPage: "",
   mutualConnections: "",
 };
 
@@ -30,7 +30,7 @@ const YES_NO_UNSURE = [
   { value: "unknown" as const, label: "Not sure" },
 ];
 
-/** Lean LinkedIn profile checks — glanceable signals only. */
+/** Glanceable LinkedIn checks only — skip anything unsure. */
 export default function LinkedInCheck({
   value,
   onChange,
@@ -43,56 +43,59 @@ export default function LinkedInCheck({
   return (
     <div className="space-y-4">
       <TapSelect
-        label="Verification badge?"
+        label="Profile badge?"
         value={value.verification}
         onChange={(v) => set({ verification: v })}
         options={[
           { value: "none", label: "None" },
-          { value: "identity", label: "Identity" },
-          { value: "workplace", label: "Workplace" },
+          { value: "premium", label: "Premium" },
+          { value: "verified", label: "Verified" },
           { value: "unknown", label: "Not sure" },
         ]}
       />
 
       <TextField
         id="profileEmployer"
-        label="Employer on their profile"
+        label="Employer shown on their profile"
         value={value.profileEmployer}
         onChange={(v) => set({ profileEmployer: v })}
-        placeholder="Headline or current role"
+        placeholder="Current company in headline / experience"
       />
 
       <TapSelect
-        label="Recent posts?"
-        hint="likes / comments"
-        value={value.postEngagement}
-        onChange={(v) => set({ postEngagement: v })}
-        options={[
-          { value: "no_posts", label: "No posts" },
-          { value: "none", label: "0" },
-          { value: "few", label: "1–4" },
-          { value: "some", label: "5–20" },
-          { value: "many", label: "20+" },
-          { value: "unknown", label: "Not sure" },
-        ]}
+        label="Do they have posts?"
+        value={value.hasPosts}
+        onChange={(v) => {
+          set({
+            hasPosts: v,
+            // Clear engagement if they don't have posts / aren't sure.
+            postEngagement: v === "yes" ? value.postEngagement : "",
+          });
+        }}
+        options={YES_NO_UNSURE}
       />
+
+      {value.hasPosts === "yes" && (
+        <TapSelect
+          label="Engagement on recent posts?"
+          hint="likes or comments"
+          value={value.postEngagement}
+          onChange={(v) => set({ postEngagement: v })}
+          options={[
+            { value: "none", label: "0" },
+            { value: "few", label: "1–4" },
+            { value: "some", label: "5–20" },
+            { value: "many", label: "20+" },
+            { value: "unknown", label: "Not sure" },
+          ]}
+        />
+      )}
 
       <TapSelect
         label="Any mutual connections?"
         value={value.mutualConnections}
         onChange={(v) => set({ mutualConnections: v })}
         options={YES_NO_UNSURE}
-      />
-
-      <TapSelect
-        label="On the company's LinkedIn People page?"
-        value={value.listedOnCompanyPage}
-        onChange={(v) => set({ listedOnCompanyPage: v })}
-        options={[
-          { value: "yes", label: "Yes" },
-          { value: "no", label: "No" },
-          { value: "unknown", label: "Couldn't check" },
-        ]}
       />
     </div>
   );

@@ -42,7 +42,7 @@ async function main() {
     {
       message: "Please pay $300 for your laptop and we will reimburse you after onboarding.",
       claimedCompany: "Acme",
-      linkedin: { verification: "workplace", postEngagement: "many" },
+      linkedin: { verification: "verified", hasPosts: "yes", postEngagement: "many" },
     },
     { paymentOrEquipmentRequest: true }
   );
@@ -56,7 +56,7 @@ async function main() {
   const r3 = await assess(
     {
       message: "Deposit 0.1 BTC to activate your work account.",
-      linkedin: { verification: "identity", postEngagement: "many" },
+      linkedin: { verification: "verified", hasPosts: "yes", postEngagement: "many" },
     },
     { cryptoDeposit: true }
   );
@@ -71,7 +71,7 @@ async function main() {
         claimedCompany: "Acme",
         companyWebsite: "acme.com",
         email: "recruiter@acme.com",
-        linkedin: { verification: "workplace", postEngagement: "some" },
+        linkedin: { verification: "premium", hasPosts: "yes", postEngagement: "some" },
       },
       {}
     ),
@@ -190,24 +190,29 @@ async function main() {
   );
   check("classifier failure still allows critical", r15.risk_level === "critical_risk", `got ${r15.risk_level}`);
 
-  // 16. Not listed on the company's People page counts as one strong signal
+  // 16. Employer mismatch alone is one strong signal -> some_concerns
   const r16 = await assess(
-    { message: BENIGN, contactSource: "linkedin", linkedin: { listedOnCompanyPage: "no" } },
+    {
+      message: BENIGN,
+      contactSource: "linkedin",
+      claimedCompany: "Acme",
+      linkedin: { profileEmployer: "OtherCorp Staffing" },
+    },
     {}
   );
   check(
-    "not on company People page -> some_concerns",
+    "employer mismatch -> some_concerns",
     r16.risk_level === "some_concerns" &&
-      r16.findings.concerning.some((c) => c.id === "li_not_on_company_page"),
+      r16.findings.concerning.some((c) => c.id === "li_employer_mismatch"),
     `got ${r16.risk_level}`
   );
 
-  // 17. No visible posts is a soft concern
+  // 17. No posts is a soft concern
   const r17 = await assess(
     {
       message: BENIGN,
       contactSource: "linkedin",
-      linkedin: { postEngagement: "no_posts" },
+      linkedin: { hasPosts: "no" },
     },
     {}
   );
@@ -217,12 +222,12 @@ async function main() {
     `got ${r17.risk_level} ${JSON.stringify(r17.findings.concerning.map((c) => c.id))}`
   );
 
-  // 18. Zero engagement is soft; with employer mismatch (strong) → high_risk
+  // 18. Zero engagement (with posts) is soft; with employer mismatch → high_risk
   const r18a = await assess(
     {
       message: BENIGN,
       contactSource: "linkedin",
-      linkedin: { postEngagement: "none" },
+      linkedin: { hasPosts: "yes", postEngagement: "none" },
     },
     {}
   );
@@ -239,17 +244,19 @@ async function main() {
       claimedCompany: "Acme",
       linkedin: {
         profileEmployer: "OtherCorp Staffing",
-        listedOnCompanyPage: "no",
+        hasPosts: "yes",
         postEngagement: "none",
+        mutualConnections: "no",
       },
     },
     {}
   );
+  // one strong (employer) + soft engagement → some_concerns (strongCount 1)
   check(
-    "employer mismatch + not on People page -> high_risk",
-    r18.risk_level === "high_risk" &&
+    "employer mismatch + zero engagement -> some_concerns",
+    r18.risk_level === "some_concerns" &&
       r18.findings.concerning.some((c) => c.id === "li_employer_mismatch") &&
-      r18.findings.concerning.some((c) => c.id === "li_not_on_company_page"),
+      r18.findings.concerning.some((c) => c.id === "li_no_engagement"),
     `got ${r18.risk_level}`
   );
 
@@ -260,8 +267,8 @@ async function main() {
       contactSource: "linkedin",
       linkedin: {
         verification: "unknown",
+        hasPosts: "unknown",
         postEngagement: "unknown",
-        listedOnCompanyPage: "unknown",
         mutualConnections: "unknown",
       },
     },
@@ -283,9 +290,9 @@ async function main() {
       message: "Deposit 0.1 BTC to activate your work account.",
       contactSource: "linkedin",
       linkedin: {
-        verification: "identity",
+        verification: "verified",
+        hasPosts: "yes",
         postEngagement: "many",
-        listedOnCompanyPage: "yes",
         mutualConnections: "yes",
       },
     },
@@ -365,7 +372,7 @@ async function main() {
       message: BENIGN,
       contactSource: "linkedin",
       claimedCompany: "Acme",
-      linkedin: { verification: "workplace", listedOnCompanyPage: "yes" },
+      linkedin: { verification: "verified", mutualConnections: "yes" },
     },
     { classifierFailed: true }
   );
@@ -390,6 +397,26 @@ async function main() {
       r29.guidance.dont.some((d) => /money|crypto|password/i.test(d)) &&
       r29.guidance.do.length >= 1,
     JSON.stringify(r29.guidance)
+  );
+
+  // 30. Links/emails in the pasted message are used without separate fields
+  const { applyExtractedContacts } = await import("../lib/extract");
+  const extracted = applyExtractedContacts({
+    message: "Apply here https://apply.fresh-hire-portal.com/x and email hr@evil.example",
+    email: undefined,
+    applicationLink: undefined,
+  });
+  check(
+    "extract fills email and link from message",
+    extracted.email === "hr@evil.example" &&
+      (extracted.applicationLink ?? "").includes("fresh-hire-portal.com"),
+    JSON.stringify(extracted)
+  );
+  const r30 = await assess(extracted, {});
+  check(
+    "extracted fresh domain still scores",
+    r30.findings.concerning.some((c) => c.id.startsWith("new_domain")),
+    JSON.stringify(r30.findings.concerning.map((c) => c.id))
   );
 
   console.log(failures ? `\n${failures} failure(s)` : "\nAll acceptance checks passed");

@@ -17,49 +17,50 @@ export function scoreLinkedIn(
       explanation:
         "The recruiter's current employer on their profile doesn't match the company they claim to be hiring for.",
     });
-  if (s.listedOnCompanyPage === "no")
-    strong.push({
-      id: "li_not_on_company_page",
-      explanation: "You couldn't find this person on the company's LinkedIn People page.",
-    });
 
-  if (s.postEngagement === "no_posts")
+  if (s.hasPosts === "no")
     soft.push({
       id: "li_no_posts",
       explanation: "The profile has no visible posts — common for disposable scam accounts.",
     });
-  else if (s.postEngagement === "none")
-    soft.push({
-      id: "li_no_engagement",
-      explanation:
-        "Recent posts show no likes or comments — disposable scam profiles often look active but get no real interaction.",
-    });
+
+  // Engagement only counts when they said the profile has posts.
+  if (s.hasPosts === "yes") {
+    if (s.postEngagement === "none")
+      soft.push({
+        id: "li_no_engagement",
+        explanation:
+          "Recent posts show no likes or comments — disposable scam profiles often look active but get no real interaction.",
+      });
+    else if (s.postEngagement === "few")
+      positive.push({
+        id: "li_some_engagement",
+        explanation:
+          "Recent posts have a little engagement (likes or comments), more consistent with a real network than a silent profile.",
+      });
+    else if (s.postEngagement === "some" || s.postEngagement === "many")
+      positive.push({
+        id: "li_real_engagement",
+        explanation:
+          s.postEngagement === "many"
+            ? "Recent posts have solid engagement (likes/comments) — harder to fake than empty activity."
+            : "Recent posts have meaningful engagement (likes/comments), consistent with a real professional network.",
+      });
+  }
 
   // POSITIVE only — raises confidence, never cancels a danger signal.
-  if (s.verification === "identity" || s.verification === "workplace")
+  if (s.verification === "verified")
     positive.push({
       id: "li_verified",
-      explanation: `LinkedIn shows ${s.verification} verification on this profile.`,
+      explanation: "LinkedIn shows a verification mark on this profile.",
     });
-  if (s.postEngagement === "few")
+  else if (s.verification === "premium")
     positive.push({
-      id: "li_some_engagement",
+      id: "li_premium",
       explanation:
-        "Recent posts have a little engagement (likes or comments), which is more consistent with a real network than a silent profile.",
+        "The profile shows LinkedIn Premium — weak signal on its own (anyone can pay), but slightly more consistent with an active recruiter account.",
     });
-  if (s.postEngagement === "some" || s.postEngagement === "many")
-    positive.push({
-      id: "li_real_engagement",
-      explanation:
-        s.postEngagement === "many"
-          ? "Recent posts have solid engagement (likes/comments) — harder to fake than empty activity."
-          : "Recent posts have meaningful engagement (likes/comments), consistent with a real professional network.",
-    });
-  if (s.listedOnCompanyPage === "yes")
-    positive.push({
-      id: "li_on_company_page",
-      explanation: "The person appears on the company's LinkedIn People page.",
-    });
+
   if (s.mutualConnections === "yes")
     positive.push({
       id: "li_mutual_connections",

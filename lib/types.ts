@@ -30,11 +30,12 @@ export type Signals = {
   classifierFailed?: boolean;
 };
 export type LinkedInAnswers = {
-  verification?: "none"|"identity"|"workplace"|"unknown";
+  /** What people can usually see at a glance on the profile. */
+  verification?: "none"|"premium"|"verified"|"unknown";
   profileEmployer?: string;
-  /** Recent posts: no posts, 0 likes, light/solid engagement, or unsure. */
-  postEngagement?: "no_posts"|"none"|"few"|"some"|"many"|"unknown";
-  listedOnCompanyPage?: "yes"|"no"|"unknown";
+  hasPosts?: "yes"|"no"|"unknown";
+  /** Only meaningful when hasPosts is yes — likes/comments on recent posts. */
+  postEngagement?: "none"|"few"|"some"|"many"|"unknown";
   mutualConnections?: "yes"|"no"|"unknown";
 };
 export type UserInput = {

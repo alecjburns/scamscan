@@ -15,38 +15,7 @@ export const EMPTY_DEEPER: DeeperState = {
   companyWebsite: "",
 };
 
-function CompanyFields({
-  claimedCompany,
-  onClaimedCompanyChange,
-  website,
-  onWebsiteChange,
-}: {
-  claimedCompany: string;
-  onClaimedCompanyChange: (v: string) => void;
-  website: string;
-  onWebsiteChange: (v: string) => void;
-}) {
-  return (
-    <>
-      <TextField
-        id="claimedCompany"
-        label="Company they claim to be from"
-        value={claimedCompany}
-        onChange={onClaimedCompanyChange}
-        placeholder="e.g. Acme Corp"
-      />
-      <TextField
-        id="companyWebsite"
-        label="Their official website"
-        value={website}
-        onChange={onWebsiteChange}
-        placeholder="e.g. company.com"
-      />
-    </>
-  );
-}
-
-/** Channel-specific contact/domain fields — flat, lean. */
+/** Channel-specific fields — only what people usually have to hand. */
 export default function ChannelDetails({
   source,
   value,
@@ -55,7 +24,7 @@ export default function ChannelDetails({
   onClaimedCompanyChange,
   emailRef,
   linkRef,
-  linkedinPart,
+  extractedHint,
 }: {
   source: ContactSource;
   value: DeeperState;
@@ -64,44 +33,38 @@ export default function ChannelDetails({
   onClaimedCompanyChange: (v: string) => void;
   emailRef?: React.Ref<HTMLInputElement>;
   linkRef?: React.Ref<HTMLInputElement>;
-  /** LinkedIn is split: company first, message extras after profile checks. */
-  linkedinPart?: "company" | "message";
+  /** Shown when we pulled a link/email out of the pasted message. */
+  extractedHint?: string | null;
 }) {
   const set = (patch: Partial<DeeperState>) => onChange({ ...value, ...patch });
 
+  const companyName = (
+    <TextField
+      id="claimedCompany"
+      label="Company they claim to be from"
+      value={claimedCompany}
+      onChange={onClaimedCompanyChange}
+      placeholder="e.g. Acme Corp"
+    />
+  );
+
+  const website = (
+    <TextField
+      id="companyWebsite"
+      label="Company website"
+      hint="only if you already know it"
+      value={value.companyWebsite}
+      onChange={(v) => set({ companyWebsite: v })}
+      placeholder="Skip if unsure"
+    />
+  );
+
   if (source === "linkedin") {
-    if (linkedinPart === "message") {
-      return (
-        <div className="space-y-4">
-          <TextField
-            id="email"
-            label="Email they shared in the message"
-            value={value.email}
-            onChange={(v) => set({ email: v })}
-            placeholder="Only if they sent one"
-            inputRef={emailRef}
-            type="email"
-          />
-          <TextField
-            id="applicationLink"
-            label="Link they shared in the message"
-            hint="we won't open it"
-            value={value.applicationLink}
-            onChange={(v) => set({ applicationLink: v })}
-            placeholder="Only if they sent one"
-            inputRef={linkRef}
-          />
-        </div>
-      );
-    }
     return (
       <div className="space-y-4">
-        <CompanyFields
-          claimedCompany={claimedCompany}
-          onClaimedCompanyChange={onClaimedCompanyChange}
-          website={value.companyWebsite}
-          onWebsiteChange={(v) => set({ companyWebsite: v })}
-        />
+        {companyName}
+        {extractedHint && <p className="text-xs text-muted">{extractedHint}</p>}
+        {website}
       </div>
     );
   }
@@ -112,6 +75,7 @@ export default function ChannelDetails({
         <TextField
           id="email"
           label="Sender's email"
+          hint="From: line — often not in the body"
           value={value.email}
           onChange={(v) => set({ email: v })}
           placeholder="e.g. anna@company.com"
@@ -119,21 +83,29 @@ export default function ChannelDetails({
           type="email"
           autoComplete="email"
         />
-        <TextField
-          id="applicationLink"
-          label="Any link in the email"
-          hint="we won't open it"
-          value={value.applicationLink}
-          onChange={(v) => set({ applicationLink: v })}
-          placeholder="Paste the link"
-          inputRef={linkRef}
-        />
-        <CompanyFields
-          claimedCompany={claimedCompany}
-          onClaimedCompanyChange={onClaimedCompanyChange}
-          website={value.companyWebsite}
-          onWebsiteChange={(v) => set({ companyWebsite: v })}
-        />
+        {extractedHint && <p className="text-xs text-muted">{extractedHint}</p>}
+        {value.applicationLink ? (
+          <TextField
+            id="applicationLink"
+            label="Link found in the message"
+            hint="we won't open it — edit if wrong"
+            value={value.applicationLink}
+            onChange={(v) => set({ applicationLink: v })}
+            inputRef={linkRef}
+          />
+        ) : (
+          <TextField
+            id="applicationLink"
+            label="Any link in the email"
+            hint="we won't open it"
+            value={value.applicationLink}
+            onChange={(v) => set({ applicationLink: v })}
+            placeholder="Auto-filled if present in the paste"
+            inputRef={linkRef}
+          />
+        )}
+        {companyName}
+        {website}
       </div>
     );
   }
@@ -141,10 +113,11 @@ export default function ChannelDetails({
   if (source === "whatsapp") {
     return (
       <div className="space-y-4">
+        {extractedHint && <p className="text-xs text-muted">{extractedHint}</p>}
         <TextField
           id="applicationLink"
           label="Any link they sent"
-          hint="don't tap it — paste here"
+          hint="don't tap it — paste or we pick it up from the message"
           value={value.applicationLink}
           onChange={(v) => set({ applicationLink: v })}
           placeholder="Paste from the chat"
@@ -155,28 +128,25 @@ export default function ChannelDetails({
           label="Any email they gave you"
           value={value.email}
           onChange={(v) => set({ email: v })}
-          placeholder="e.g. hr@company.com"
+          placeholder="Only if they sent one"
           inputRef={emailRef}
           type="email"
         />
-        <CompanyFields
-          claimedCompany={claimedCompany}
-          onClaimedCompanyChange={onClaimedCompanyChange}
-          website={value.companyWebsite}
-          onWebsiteChange={(v) => set({ companyWebsite: v })}
-        />
+        {companyName}
+        {website}
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
+      {extractedHint && <p className="text-xs text-muted">{extractedHint}</p>}
       <TextField
         id="email"
         label="Sender's email"
         value={value.email}
         onChange={(v) => set({ email: v })}
-        placeholder="e.g. anna@company.com"
+        placeholder="If you have it"
         inputRef={emailRef}
         type="email"
       />
@@ -186,15 +156,11 @@ export default function ChannelDetails({
         hint="we won't open it"
         value={value.applicationLink}
         onChange={(v) => set({ applicationLink: v })}
-        placeholder="Paste the link"
+        placeholder="Auto-filled if present in the paste"
         inputRef={linkRef}
       />
-      <CompanyFields
-        claimedCompany={claimedCompany}
-        onClaimedCompanyChange={onClaimedCompanyChange}
-        website={value.companyWebsite}
-        onWebsiteChange={(v) => set({ companyWebsite: v })}
-      />
+      {companyName}
+      {website}
     </div>
   );
 }
