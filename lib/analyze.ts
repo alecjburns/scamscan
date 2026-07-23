@@ -168,7 +168,10 @@ export async function assess(input: UserInput, signals: Signals): Promise<Report
   });
 
   let liSoft: Finding[] = [];
-  if (isLinkedIn) {
+  const hasLinkedInAnswers = Boolean(
+    input.linkedin && Object.values(input.linkedin).some((v) => v !== undefined && v !== "")
+  );
+  if (hasLinkedInAnswers) {
     checks_run.push("LinkedIn profile answers you reported");
     const li = scoreLinkedIn(
       { ...input.linkedin, claimedHiringCompany: input.claimedCompany, claimsSeniorRole: signals.claimsSeniorRole },
@@ -177,6 +180,8 @@ export async function assess(input: UserInput, signals: Signals): Promise<Report
     strong.push(...li.strong);
     positive.push(...li.positive);
     liSoft = li.soft;
+  } else if (isLinkedIn) {
+    checks_run.push("LinkedIn as the contact channel (no profile answers filled in)");
   }
   for (const s of strong) if (!concerning.some((c) => c.id === s.id)) concerning.push(s);
   const strongCount = strong.length;
@@ -201,7 +206,7 @@ export async function assess(input: UserInput, signals: Signals): Promise<Report
     unverified.push({
       id: "classifier_unavailable",
       explanation:
-        "The message-content analysis couldn't run this time, so this result relies on domain and profile checks only.",
+        "The AI wording check couldn't run this time (temporary service issue). Try scanning again — domain and profile checks below still apply.",
     });
 
   let risk_level: RiskLevel;
@@ -240,12 +245,20 @@ export async function assess(input: UserInput, signals: Signals): Promise<Report
     confidence,
     is_linkedin: isLinkedIn,
     findings: { concerning, positive, unverified },
-    recommended_action: recommend(risk_level, isLinkedIn),
+    recommended_action: recommend(risk_level, isLinkedIn, {
+      classifierFailed: Boolean(signals.classifierFailed),
+      coverage,
+    }),
     checks_run,
+    classifier_failed: Boolean(signals.classifierFailed) || undefined,
   };
 }
 
-function recommend(level: RiskLevel, isLinkedIn: boolean): string {
+function recommend(
+  level: RiskLevel,
+  isLinkedIn: boolean,
+  opts: { classifierFailed: boolean; coverage: number }
+): string {
   // LinkedIn Report tip is shown separately in the result UI for high/critical —
   // keep it out of this string to avoid duplication.
   void isLinkedIn;
@@ -258,6 +271,11 @@ function recommend(level: RiskLevel, isLinkedIn: boolean): string {
     case "low_apparent_risk":
       return "We found no significant risk indicators in what you provided — but this doesn't confirm the opportunity is genuine. Still verify the recruiter and role through the company's official channels before sharing personal information.";
     default:
+      if (opts.classifierFailed) {
+        return opts.coverage > 0
+          ? "The AI wording check failed this time, so we can't clear or escalate based on the message text. Hit Scan again in a moment — your other details are already filled in."
+          : "The AI wording check failed this time. Try scanning again in a moment. Adding an email, link, or company website also helps if the wording check is unavailable.";
+      }
       return "There wasn't enough here to assess. Paste the full message and add the sender's email or the application link for a useful check.";
   }
 }

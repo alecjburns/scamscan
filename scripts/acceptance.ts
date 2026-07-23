@@ -324,6 +324,33 @@ async function main() {
   const r26 = await assess({ message: BENIGN }, {});
   check("checks_run present", Array.isArray(r26.checks_run) && r26.checks_run.length > 0);
 
+  // 27. LinkedIn contact source alone does not claim profile answers were reported
+  const r27 = await assess({ message: BENIGN, contactSource: "linkedin" }, { classifierFailed: true });
+  check(
+    "linkedin source without answers is labelled honestly",
+    r27.checks_run.some((c) => c.includes("no profile answers")) &&
+      !r27.checks_run.some((c) => c === "LinkedIn profile answers you reported"),
+    JSON.stringify(r27.checks_run)
+  );
+
+  // 28. Classifier failure with coverage tells the user to retry, not to add more fields
+  const r28 = await assess(
+    {
+      message: BENIGN,
+      contactSource: "linkedin",
+      claimedCompany: "Acme",
+      linkedin: { verification: "workplace", listedOnCompanyPage: "yes" },
+    },
+    { classifierFailed: true }
+  );
+  check(
+    "classifier fail + coverage nudges retry",
+    r28.risk_level === "insufficient_evidence" &&
+      /scan again/i.test(r28.recommended_action) &&
+      r28.classifier_failed === true,
+    r28.recommended_action
+  );
+
   console.log(failures ? `\n${failures} failure(s)` : "\nAll acceptance checks passed");
   process.exit(failures ? 1 : 0);
 }

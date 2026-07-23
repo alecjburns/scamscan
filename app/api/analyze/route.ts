@@ -85,8 +85,10 @@ export async function POST(req: NextRequest) {
 
   let signals: Signals = { classifierFailed: true };
   const classifierUsed = Boolean(process.env.ANTHROPIC_API_KEY);
+  let classifierError: string | null = null;
+
   if (classifierUsed) {
-    try {
+    const attempt = async () => {
       const msg = await anthropic.messages.create(
         {
           model: MODEL,
@@ -94,14 +96,38 @@ export async function POST(req: NextRequest) {
           system: CLASSIFIER_SYSTEM,
           messages: [{ role: "user", content: input.message }],
         },
-        { timeout: 20_000, maxRetries: 1 }
+        { timeout: 18_000, maxRetries: 0 }
       );
       const text = msg.content
         .filter((b): b is Extract<typeof b, { type: "text" }> => b.type === "text")
         .map((b) => b.text)
         .join("");
-      signals = sanitizeSignals(parseSignals(text));
-    } catch { /* deterministic checks still run */ }
+      return sanitizeSignals(parseSignals(text));
+    };
+
+    // One manual retry for transient Anthropic/network failures.
+    for (let i = 0; i < 2; i++) {
+      try {
+        signals = await attempt();
+        classifierError = null;
+        break;
+      } catch (err) {
+        const e = err as {
+          status?: number;
+          message?: string;
+          error?: { type?: string; error?: { type?: string } };
+        };
+        classifierError = [
+          e.status ? `status=${e.status}` : null,
+          e.error?.error?.type || e.error?.type || null,
+          (e.message || "classifier_error").slice(0, 160),
+        ]
+          .filter(Boolean)
+          .join(" ");
+        signals = { classifierFailed: true };
+        if (i === 0) await new Promise((r) => setTimeout(r, 400));
+      }
+    }
   }
 
   const report = await assess(input, signals);
@@ -118,6 +144,8 @@ export async function POST(req: NextRequest) {
       source: input.contactSource ?? null,
       classifierUsed,
       classifierFailed,
+      classifierError,
+      model: classifierUsed ? MODEL : null,
       durationMs,
     })
   );

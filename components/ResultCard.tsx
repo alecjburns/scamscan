@@ -87,6 +87,15 @@ export default function ResultCard({ report }: { report: Report }) {
     >
       <RiskBadge level={report.risk_level} />
       <p className="mt-3 text-sm text-muted">{CONFIDENCE_COPY[report.confidence]}</p>
+      {report.classifier_failed && (
+        <p
+          className="mt-3 rounded-[var(--radius-input)] border border-dashed border-line bg-bg px-3 py-2.5 text-sm leading-relaxed text-ink"
+          role="status"
+        >
+          The AI wording check didn&rsquo;t complete — this isn&rsquo;t about how much you
+          filled in. Scan again in a moment and the message analysis should run.
+        </p>
+      )}
 
       <div className="mt-6 space-y-6">
         <FindingList

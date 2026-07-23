@@ -8,6 +8,8 @@ export type Report = {
   recommended_action: string; is_linkedin: boolean;
   /** Plain-language list of what was examined — shown when findings are sparse. */
   checks_run: string[];
+  /** True when the Anthropic wording classifier was skipped or failed. */
+  classifier_failed?: boolean;
 };
 export type Signals = {
   paymentOrEquipmentRequest?: boolean; cryptoDeposit?: boolean; taskJobMoneyTransfer?: boolean;
