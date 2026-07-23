@@ -65,7 +65,7 @@ const RULES = [
 
 export default function InsightsPage() {
   return (
-    <main className="mx-auto w-full max-w-[var(--maxw-wide)] flex-1 px-5 py-10 sm:py-14">
+    <main className="mx-auto w-full max-w-[var(--maxw-wide)] flex-1 px-4 py-8 sm:px-5 sm:py-14">
       <SiteHeader />
 
       <article>

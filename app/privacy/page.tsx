@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <main className="mx-auto w-full max-w-[var(--maxw)] flex-1 px-5 py-10 sm:py-14">
+    <main className="mx-auto w-full max-w-[var(--maxw)] flex-1 px-4 py-8 sm:px-5 sm:py-14">
       <SiteHeader />
 
       <article className="ss-rise">
@@ -20,8 +20,29 @@ export default function PrivacyPage() {
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-muted">
           ScamScan is a trust tool for checking a recruiter approach before you reply. This page
-          explains what we do with what you paste — and what we deliberately never do.
+          explains what we do with what you paste — including that the message text is processed by
+          Anthropic&rsquo;s Claude API.
         </p>
+
+        <section className="mt-10 space-y-3 rounded-[var(--radius-card)] border border-line bg-surface/90 p-5">
+          <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-ink">
+            Short version
+          </h2>
+          <ul className="list-disc space-y-2 pl-5 text-[15px] leading-relaxed text-ink">
+            <li>
+              <strong className="font-medium">Your message text is sent to Anthropic</strong> (Claude)
+              once per scan so we can classify scam wording patterns.
+            </li>
+            <li>
+              <strong className="font-medium">ScamScan does not store</strong> the message, create
+              accounts, or keep a history.
+            </li>
+            <li>
+              <strong className="font-medium">We never scrape LinkedIn</strong> or open links you
+              paste — you report what you see on your own screen.
+            </li>
+          </ul>
+        </section>
 
         <section className="mt-10 space-y-3">
           <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-ink">
@@ -56,7 +77,7 @@ export default function PrivacyPage() {
               you showed us.
             </li>
             <li>
-              Optional feedback (yes/no + a short note) is logged as a count and a structured log line
+              If you leave feedback (yes/no + a short note), we log a count and a structured log line
               only — never with the original message.
             </li>
           </ul>

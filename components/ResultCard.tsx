@@ -80,7 +80,7 @@ export default function ResultCard({ report }: { report: Report }) {
 
   return (
     <div
-      className="rounded-[var(--radius-card)] border border-line bg-surface/95 p-6 backdrop-blur-[2px] sm:p-7"
+      className="rounded-[var(--radius-card)] border border-line bg-surface/95 p-4 backdrop-blur-[2px] sm:p-7"
       style={{ boxShadow: "var(--shadow-card)" }}
       role="region"
       aria-label="Scan result"
@@ -151,7 +151,7 @@ export default function ResultCard({ report }: { report: Report }) {
                 onClick={() => setFeedback("up")}
                 aria-pressed={feedback === "up"}
                 aria-label="Yes, this was useful"
-                className={`rounded-[var(--radius-input)] border px-3 py-1.5 text-sm transition-colors ${
+                className={`min-h-10 rounded-[var(--radius-input)] border px-3 py-2 text-sm transition-colors sm:min-h-0 sm:py-1.5 ${
                   feedback === "up"
                     ? "border-accent bg-accent/5 text-accent-ink"
                     : "border-line text-muted hover:border-accent hover:text-accent-ink"
@@ -164,7 +164,7 @@ export default function ResultCard({ report }: { report: Report }) {
                 onClick={() => setFeedback("down")}
                 aria-pressed={feedback === "down"}
                 aria-label="No, this wasn't useful"
-                className={`rounded-[var(--radius-input)] border px-3 py-1.5 text-sm transition-colors ${
+                className={`min-h-10 rounded-[var(--radius-input)] border px-3 py-2 text-sm transition-colors sm:min-h-0 sm:py-1.5 ${
                   feedback === "down"
                     ? "border-accent bg-accent/5 text-accent-ink"
                     : "border-line text-muted hover:border-accent hover:text-accent-ink"
@@ -181,14 +181,14 @@ export default function ResultCard({ report }: { report: Report }) {
               type="text"
               value={feedbackNote}
               onChange={(e) => setFeedbackNote(e.target.value)}
-              placeholder="Optional — what happened?"
-              className="flex-1 rounded-[var(--radius-input)] border border-line bg-bg px-3 py-2 text-sm text-ink placeholder:text-muted"
+              placeholder="What happened?"
+              className="min-h-10 flex-1 rounded-[var(--radius-input)] border border-line bg-bg px-3 py-2.5 text-base text-ink placeholder:text-muted sm:min-h-0 sm:py-2 sm:text-sm"
             />
             <button
               type="button"
               disabled={feedbackBusy}
               onClick={sendFeedback}
-              className="rounded-[var(--radius-input)] bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-ink disabled:opacity-50"
+              className="min-h-10 rounded-[var(--radius-input)] bg-accent px-4 py-2.5 text-sm font-medium text-white hover:bg-accent-ink disabled:opacity-50 sm:min-h-0 sm:py-2"
             >
               {feedbackBusy ? "Sending…" : "Send"}
             </button>

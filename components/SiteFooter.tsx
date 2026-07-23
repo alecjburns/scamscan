@@ -8,7 +8,9 @@ export default function SiteFooter() {
         scammer, and a low-risk result doesn&rsquo;t confirm an opportunity is genuine.
       </p>
       <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-        <span>Nothing you paste is stored.</span>
+        <span>
+          Message text goes once to Anthropic for classification; ScamScan doesn&rsquo;t store it.
+        </span>
         <Link
           href="/privacy"
           className="text-accent-ink underline decoration-line underline-offset-2"
