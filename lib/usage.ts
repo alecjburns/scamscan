@@ -1,17 +1,51 @@
-// Rate limiting + usage counters.
-// Prefer Upstash Redis when UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN
-// are set (durable across Vercel isolates). Otherwise fall back to in-memory
-// per-instance counters. Never stores message content; IPs only live in a
-// rolling one-minute window key that expires.
+// Rate limiting + usage counters — primary Anthropic spend guard.
+// Prefer Upstash Redis (shared across all Vercel isolates). Without it,
+// counters are in-memory per instance and are NOT a hard budget guarantee.
+//
+// Never stores message content; IPs only live in rolling window keys.
 
 const WINDOW_MS = 60_000;
-const IP_PER_MINUTE = Math.max(1, Number(process.env.SCAMSCAN_IP_PER_MINUTE) || 5);
-const GLOBAL_PER_MINUTE = Math.max(1, Number(process.env.SCAMSCAN_GLOBAL_PER_MINUTE) || 10);
-const DAILY_CAP = Math.max(1, Number(process.env.SCAMSCAN_DAILY_CAP) || 1000);
 
+function envInt(name: string, fallback: number, min = 1): number {
+  const n = Number(process.env[name]);
+  return Number.isFinite(n) && n >= min ? Math.floor(n) : fallback;
+}
+
+const ON_VERCEL = process.env.VERCEL === "1";
 const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL?.replace(/\/$/, "");
 const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 export const usingDurableLimits = Boolean(UPSTASH_URL && UPSTASH_TOKEN);
+
+// Tight defaults. On Vercel without Redis, go even tighter (emergency mode).
+const EMERGENCY = ON_VERCEL && !usingDurableLimits;
+const IP_PER_MINUTE = envInt(
+  "SCAMSCAN_IP_PER_MINUTE",
+  EMERGENCY ? 2 : 3
+);
+const GLOBAL_PER_MINUTE = envInt(
+  "SCAMSCAN_GLOBAL_PER_MINUTE",
+  EMERGENCY ? 3 : 5
+);
+const DAILY_CAP = envInt(
+  "SCAMSCAN_DAILY_CAP",
+  EMERGENCY ? 80 : 150
+);
+
+// When Redis is configured, never fall open to looser in-memory limits.
+const FAIL_CLOSED_ON_REDIS_ERROR =
+  usingDurableLimits || process.env.SCAMSCAN_FAIL_CLOSED_LIMITS === "1";
+
+if (EMERGENCY && typeof console !== "undefined") {
+  console.error(
+    JSON.stringify({
+      evt: "scamscan_limit_warning",
+      msg: "Running on Vercel without Upstash — rate limits are per-instance only. Set UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN immediately to protect Anthropic spend.",
+      ipPerMinute: IP_PER_MINUTE,
+      globalPerMinute: GLOBAL_PER_MINUTE,
+      dailyCap: DAILY_CAP,
+    })
+  );
+}
 
 async function redisCmd(...args: (string | number)[]): Promise<unknown> {
   if (!UPSTASH_URL || !UPSTASH_TOKEN) throw new Error("redis not configured");
@@ -47,7 +81,10 @@ function memoryGlobalLimited(now: number): boolean {
 
 function memoryDailyCap(now: Date): boolean {
   const today = now.toDateString();
-  if (today !== capDay) { capDay = today; capCount = 0; }
+  if (today !== capDay) {
+    capDay = today;
+    capCount = 0;
+  }
   return ++capCount > DAILY_CAP;
 }
 
@@ -70,16 +107,27 @@ export type RejectionKind = "perIp" | "global" | "dailyCap";
 /** Returns which limit tripped, or null if allowed. */
 export async function checkLimits(ip: string): Promise<RejectionKind | null> {
   const now = Date.now();
-  try {
-    if (usingDurableLimits) {
+
+  if (usingDurableLimits) {
+    try {
       if (await redisWindowLimited(`scamscan:ip:${ip}`, IP_PER_MINUTE)) return "perIp";
       if (await redisWindowLimited("scamscan:global", GLOBAL_PER_MINUTE)) return "global";
       if (await redisDailyCap()) return "dailyCap";
       return null;
+    } catch (err) {
+      console.error(
+        JSON.stringify({
+          evt: "scamscan_redis_limit_error",
+          error: String(err).slice(0, 200),
+          failClosed: FAIL_CLOSED_ON_REDIS_ERROR,
+        })
+      );
+      // Never fall open to weaker per-instance limits when Redis was supposed
+      // to be the spend guard.
+      if (FAIL_CLOSED_ON_REDIS_ERROR) return "global";
     }
-  } catch {
-    // Fall through to memory if Redis is down — better to keep serving than fail open forever.
   }
+
   if (memoryIpLimited(ip, now)) return "perIp";
   if (memoryGlobalLimited(now)) return "global";
   if (memoryDailyCap(new Date(now))) return "dailyCap";
@@ -141,10 +189,14 @@ export function getStats() {
       globalPerMinute: GLOBAL_PER_MINUTE,
       dailyCap: DAILY_CAP,
       durable: usingDurableLimits,
+      emergencyNoRedis: EMERGENCY,
+      onVercel: ON_VERCEL,
     },
     scansLeftToday: usingDurableLimits ? null : Math.max(0, DAILY_CAP - capCount),
     note: usingDurableLimits
       ? "Limits are backed by Upstash Redis (shared across instances)."
-      : "In-memory, per-instance; set UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN for durable limits. See Vercel logs and the Anthropic console for durable usage.",
+      : EMERGENCY
+        ? "CRITICAL: Vercel without Upstash — limits are per-instance only (emergency tighter caps active). Add UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN."
+        : "In-memory, per-instance; set UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN for durable limits.",
   };
 }

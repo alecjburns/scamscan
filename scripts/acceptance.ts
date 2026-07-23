@@ -300,21 +300,21 @@ async function main() {
   );
   check("fully positive profile + crypto -> still critical", r21.risk_level === "critical_risk", `got ${r21.risk_level}`);
 
-  // 22. Per-IP limiter: 5/minute allowed, 6th rejected, window ages out
+  // 22. Per-IP limiter: 3/minute allowed, 4th rejected, window ages out
   const t0 = Date.now();
-  const ipResults = Array.from({ length: 6 }, () => ipLimited("test-ip", t0));
+  const ipResults = Array.from({ length: 4 }, () => ipLimited("test-ip", t0));
   check(
-    "per-IP limit allows 5/min then rejects",
-    ipResults.slice(0, 5).every((r) => !r) && ipResults[5] === true,
+    "per-IP limit allows 3/min then rejects",
+    ipResults.slice(0, 3).every((r) => !r) && ipResults[3] === true,
     JSON.stringify(ipResults)
   );
   check("per-IP window ages out after a minute", ipLimited("test-ip", t0 + 61_000) === false);
 
-  // 23. Global limiter: 10/minute allowed, 11th rejected
-  const globalResults = Array.from({ length: 11 }, () => globalLimited(t0));
+  // 23. Global limiter: 5/minute allowed, 6th rejected
+  const globalResults = Array.from({ length: 6 }, () => globalLimited(t0));
   check(
-    "global limit allows 10/min then rejects",
-    globalResults.slice(0, 10).every((r) => !r) && globalResults[10] === true,
+    "global limit allows 5/min then rejects",
+    globalResults.slice(0, 5).every((r) => !r) && globalResults[5] === true,
     JSON.stringify(globalResults)
   );
 

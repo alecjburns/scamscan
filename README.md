@@ -22,13 +22,13 @@ Add your Anthropic key to `.env.local` (never exposed to the client):
 ```
 ANTHROPIC_API_KEY=sk-...
 SCAMSCAN_MODEL=claude-haiku-4-5   # structured signal JSON — Haiku is ~3× cheaper than Sonnet; override if needed
-SCAMSCAN_IP_PER_MINUTE=5
-SCAMSCAN_GLOBAL_PER_MINUTE=10
-SCAMSCAN_DAILY_CAP=1000
+SCAMSCAN_IP_PER_MINUTE=3
+SCAMSCAN_GLOBAL_PER_MINUTE=5
+SCAMSCAN_DAILY_CAP=150
 NEXT_PUBLIC_SITE_URL=https://your-domain.com
 SCAMSCAN_STATS_TOKEN=long-random-secret
 
-# Recommended on Vercel for durable rate limits:
+# REQUIRED on Vercel for real spend protection (shared across instances):
 UPSTASH_REDIS_REST_URL=https://xxxx.upstash.io
 UPSTASH_REDIS_REST_TOKEN=...
 ```
@@ -49,11 +49,12 @@ npm run check    # offline acceptance suite
 
 ## Budget guards & usage tracking
 
-- **Per IP:** 5/min · **Global:** 10/min · **Daily:** 1000/day (all configurable)
-- With Upstash configured, limits are shared across Vercel instances; otherwise they fall back to in-memory per isolate
-- Message capped at 6,000 characters; classifier response at 700 tokens
-- `GET /api/stats?token=...` for live counters; structured `scamscan_scan` / `scamscan_feedback` log lines in Vercel; Anthropic console for exact spend
-
+- **Per IP:** 3/min · **Global:** 5/min · **Daily:** 150/day (configurable; tighter emergency caps if Vercel runs without Redis)
+- **Upstash Redis is required in production** so limits are shared across all Vercel instances. Without it, each isolate has its own counters and a spam burst can multiply spend.
+- If Redis is configured but unreachable, ScamScan **fails closed** (rejects scans) instead of falling open.
+- Anthropic is only called from `POST /api/analyze`, after rate limits; retries only on transient 429/529/timeouts (max 1).
+- Message capped at 6,000 characters; classifier `max_tokens` 450; Haiku by default.
+- `GET /api/stats?token=...` for live counters; structured `scamscan_scan` log lines in Vercel; set a spend alert in the Anthropic console too.
 ## Stack
 
 Next.js (App Router) · TypeScript · Tailwind CSS · `@anthropic-ai/sdk` · optional Upstash Redis

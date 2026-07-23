@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
       return sanitizeSignals(parseSignals(text));
     };
 
-    // One manual retry for transient Anthropic/network failures.
+    // One retry only for transient overload/timeouts — never on auth/bad-request.
     for (let i = 0; i < 2; i++) {
       try {
         signals = await attempt();
@@ -111,16 +111,28 @@ export async function POST(req: NextRequest) {
           status?: number;
           message?: string;
           error?: { type?: string; error?: { type?: string } };
+          name?: string;
         };
+        const status = e.status;
+        const msg = (e.message || "").toLowerCase();
+        const transient =
+          status === 429 ||
+          status === 529 ||
+          status === 500 ||
+          status === 503 ||
+          e.name === "APIConnectionTimeoutError" ||
+          msg.includes("timeout") ||
+          msg.includes("overloaded");
         classifierError = [
-          e.status ? `status=${e.status}` : null,
+          status ? `status=${status}` : null,
           e.error?.error?.type || e.error?.type || null,
           (e.message || "classifier_error").slice(0, 160),
         ]
           .filter(Boolean)
           .join(" ");
         signals = { classifierFailed: true };
-        if (i === 0) await new Promise((r) => setTimeout(r, 400));
+        if (i === 0 && transient) await new Promise((r) => setTimeout(r, 400));
+        else break;
       }
     }
   }
