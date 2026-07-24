@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Finding, Report } from "@/lib/types";
-import RiskBadge from "./RiskBadge";
+import RiskBadge, { riskLabel } from "./RiskBadge";
 
 const CONFIDENCE_COPY: Record<Report["confidence"], string> = {
   high: "Higher confidence — your extra details backed up the message-level signals.",
@@ -41,6 +41,25 @@ function FindingList({
   );
 }
 
+function buildCopyText(report: Report): string {
+  const lines = [
+    `ScamScan result: ${riskLabel(report.risk_level)} (${report.confidence} confidence)`,
+    "",
+    report.recommended_action,
+    "",
+    "Do:",
+    ...report.guidance.do.map((d) => `• ${d}`),
+    "",
+    "Don't:",
+    ...report.guidance.dont.map((d) => `• ${d}`),
+  ];
+  if (report.findings.concerning.length) {
+    lines.push("", "Concerns:", ...report.findings.concerning.map((f) => `• ${f.explanation}`));
+  }
+  lines.push("", "This is an aid, not proof a role is real or that a person is a scammer.");
+  return lines.join("\n");
+}
+
 function GuidanceLists({ report }: { report: Report }) {
   const { do: dos, dont } = report.guidance;
   return (
@@ -65,7 +84,9 @@ function GuidanceLists({ report }: { report: Report }) {
           </ul>
         </div>
         <div className="rounded-[var(--radius-input)] border border-line bg-bg/60 px-3.5 py-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-[var(--r-high)]">Don&rsquo;t</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-[var(--r-high)]">
+            Don&rsquo;t
+          </p>
           <ul className="mt-2 space-y-2">
             {dont.map((item) => (
               <li key={item} className="flex gap-2 text-sm leading-relaxed text-ink">
@@ -87,6 +108,7 @@ export default function ResultCard({ report }: { report: Report }) {
   const [feedbackNote, setFeedbackNote] = useState("");
   const [feedbackSent, setFeedbackSent] = useState(false);
   const [feedbackBusy, setFeedbackBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const sparseFindings =
     report.findings.concerning.length === 0 &&
@@ -97,6 +119,16 @@ export default function ResultCard({ report }: { report: Report }) {
     report.risk_level === "high_risk" || report.risk_level === "critical_risk"
       ? "Red flags"
       : "Concerns";
+
+  async function copySummary() {
+    try {
+      await navigator.clipboard.writeText(buildCopyText(report));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* ignore */
+    }
+  }
 
   async function sendFeedback() {
     if (!feedback || feedbackBusy) return;
@@ -112,7 +144,7 @@ export default function ResultCard({ report }: { report: Report }) {
         }),
       });
     } catch {
-      /* still thank them — feedback is best-effort */
+      /* still thank them */
     } finally {
       setFeedbackSent(true);
       setFeedbackBusy(false);
@@ -126,15 +158,24 @@ export default function ResultCard({ report }: { report: Report }) {
       role="region"
       aria-label="Scan result"
     >
-      <RiskBadge level={report.risk_level} />
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <RiskBadge level={report.risk_level} />
+        <button
+          type="button"
+          onClick={copySummary}
+          className="min-h-10 shrink-0 rounded-[var(--radius-input)] border border-line px-3 py-2 text-sm text-ink transition-colors hover:border-accent hover:text-accent-ink sm:min-h-0 sm:py-1.5"
+        >
+          {copied ? "Copied" : "Copy summary"}
+        </button>
+      </div>
       <p className="mt-3 text-sm text-muted">{CONFIDENCE_COPY[report.confidence]}</p>
       {report.classifier_failed && (
         <p
           className="mt-3 rounded-[var(--radius-input)] border border-dashed border-line bg-bg px-3 py-2.5 text-sm leading-relaxed text-ink"
           role="status"
         >
-          The AI wording check didn&rsquo;t complete — this isn&rsquo;t about how much you
-          filled in. Scan again in a moment and the message analysis should run.
+          The AI wording check didn&rsquo;t complete — this isn&rsquo;t about how much you filled
+          in. Scan again in a moment and the message analysis should run.
         </p>
       )}
 

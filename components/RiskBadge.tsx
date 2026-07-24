@@ -23,10 +23,11 @@ const icon = (path: ReactElement) => (
   </svg>
 );
 
+/** Labels align with home copy: clearer / caution / dangerous. */
 const CONFIG: Record<RiskLevel, BadgeConfig> = {
   insufficient_evidence: {
-    label: "Need more to go on",
-    blurb: "Not enough to judge this approach yet.",
+    label: "Need more info",
+    blurb: "Not enough to judge this approach yet — add a detail below and scan again.",
     cssVar: "--r-insufficient",
     icon: icon(
       <>
@@ -37,8 +38,8 @@ const CONFIG: Record<RiskLevel, BadgeConfig> = {
     ),
   },
   low_apparent_risk: {
-    label: "No major red flags",
-    blurb: "Still verify independently — this is not a green light.",
+    label: "Looks clearer",
+    blurb: "No major red flags in what you provided — still not proof the role is genuine.",
     cssVar: "--r-low",
     icon: icon(
       <>
@@ -48,8 +49,8 @@ const CONFIG: Record<RiskLevel, BadgeConfig> = {
     ),
   },
   some_concerns: {
-    label: "Proceed with caution",
-    blurb: "Some warning signs — verify before you engage further.",
+    label: "Caution",
+    blurb: "Warning signs — verify independently before you engage further.",
     cssVar: "--r-concern",
     icon: icon(
       <>
@@ -60,7 +61,7 @@ const CONFIG: Record<RiskLevel, BadgeConfig> = {
     ),
   },
   high_risk: {
-    label: "High risk — stop",
+    label: "Dangerous — stop",
     blurb: "Strong scam patterns. Don't engage with this approach.",
     cssVar: "--r-high",
     icon: icon(
@@ -72,7 +73,7 @@ const CONFIG: Record<RiskLevel, BadgeConfig> = {
     ),
   },
   critical_risk: {
-    label: "Critical — stop now",
+    label: "Dangerous — stop now",
     blurb: "Clear danger signals (payment, credentials, or lookalike domains).",
     cssVar: "--r-critical",
     icon: icon(
@@ -88,6 +89,10 @@ const CONFIG: Record<RiskLevel, BadgeConfig> = {
     ),
   },
 };
+
+export function riskLabel(level: RiskLevel): string {
+  return CONFIG[level].label;
+}
 
 export default function RiskBadge({ level }: { level: RiskLevel }) {
   const { label, blurb, cssVar, icon } = CONFIG[level];

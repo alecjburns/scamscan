@@ -1,7 +1,7 @@
 "use client";
 
 import { ContactSource } from "@/lib/types";
-import { TextField } from "./fields";
+import { TextField, TapSelect } from "./fields";
 
 export type DeeperState = {
   email: string;
@@ -24,7 +24,9 @@ export default function ChannelDetails({
   onClaimedCompanyChange,
   emailRef,
   linkRef,
-  extractedHint,
+  extractedChips,
+  leftPlatform,
+  onLeftPlatformChange,
 }: {
   source: ContactSource;
   value: DeeperState;
@@ -33,10 +35,27 @@ export default function ChannelDetails({
   onClaimedCompanyChange: (v: string) => void;
   emailRef?: React.Ref<HTMLInputElement>;
   linkRef?: React.Ref<HTMLInputElement>;
-  /** Shown when we pulled a link/email out of the pasted message. */
-  extractedHint?: string | null;
+  extractedChips?: { email?: string; link?: string };
+  leftPlatform?: "" | "yes" | "no" | "unknown";
+  onLeftPlatformChange?: (v: "" | "yes" | "no" | "unknown") => void;
 }) {
   const set = (patch: Partial<DeeperState>) => onChange({ ...value, ...patch });
+
+  const chips =
+    extractedChips && (extractedChips.email || extractedChips.link) ? (
+      <div className="flex flex-wrap gap-1.5">
+        {extractedChips.email && (
+          <span className="rounded-[var(--radius-pill)] border border-line bg-bg px-2.5 py-1 text-xs text-ink">
+            Email found: {extractedChips.email}
+          </span>
+        )}
+        {extractedChips.link && (
+          <span className="max-w-full truncate rounded-[var(--radius-pill)] border border-line bg-bg px-2.5 py-1 text-xs text-ink">
+            Link found: {extractedChips.link}
+          </span>
+        )}
+      </div>
+    ) : null;
 
   const companyName = (
     <TextField
@@ -63,7 +82,7 @@ export default function ChannelDetails({
     return (
       <div className="space-y-4">
         {companyName}
-        {extractedHint && <p className="text-xs text-muted">{extractedHint}</p>}
+        {chips}
         {website}
       </div>
     );
@@ -83,27 +102,16 @@ export default function ChannelDetails({
           type="email"
           autoComplete="email"
         />
-        {extractedHint && <p className="text-xs text-muted">{extractedHint}</p>}
-        {value.applicationLink ? (
-          <TextField
-            id="applicationLink"
-            label="Link found in the message"
-            hint="we won't open it — edit if wrong"
-            value={value.applicationLink}
-            onChange={(v) => set({ applicationLink: v })}
-            inputRef={linkRef}
-          />
-        ) : (
-          <TextField
-            id="applicationLink"
-            label="Any link in the email"
-            hint="we won't open it"
-            value={value.applicationLink}
-            onChange={(v) => set({ applicationLink: v })}
-            placeholder="Auto-filled if present in the paste"
-            inputRef={linkRef}
-          />
-        )}
+        {chips}
+        <TextField
+          id="applicationLink"
+          label="Any link in the email"
+          hint="we won't open it"
+          value={value.applicationLink}
+          onChange={(v) => set({ applicationLink: v })}
+          placeholder="Auto-filled if present in the paste"
+          inputRef={linkRef}
+        />
         {companyName}
         {website}
       </div>
@@ -113,7 +121,19 @@ export default function ChannelDetails({
   if (source === "whatsapp") {
     return (
       <div className="space-y-4">
-        {extractedHint && <p className="text-xs text-muted">{extractedHint}</p>}
+        {onLeftPlatformChange && (
+          <TapSelect
+            label="Did they ask you to leave LinkedIn (or email) for this chat?"
+            value={leftPlatform ?? ""}
+            onChange={onLeftPlatformChange}
+            options={[
+              { value: "yes", label: "Yes" },
+              { value: "no", label: "No" },
+              { value: "unknown", label: "Not sure" },
+            ]}
+          />
+        )}
+        {chips}
         <TextField
           id="applicationLink"
           label="Any link they sent"
@@ -140,7 +160,7 @@ export default function ChannelDetails({
 
   return (
     <div className="space-y-4">
-      {extractedHint && <p className="text-xs text-muted">{extractedHint}</p>}
+      {chips}
       <TextField
         id="email"
         label="Sender's email"

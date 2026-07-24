@@ -42,4 +42,8 @@ export type UserInput = {
   message: string; contactSource?: ContactSource;
   claimedCompany?: string; email?: string; applicationLink?: string; companyWebsite?: string;
   linkedin?: LinkedInAnswers;
+  /** User says they were pushed off LinkedIn / email onto chat. */
+  leftPlatform?: "yes"|"no"|"unknown";
+  /** Already sent money or ID — changes guidance toward report/freeze steps. */
+  harmDone?: "none"|"money"|"id"|"both";
 };

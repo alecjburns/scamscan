@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ContactSource, Report, UserInput } from "@/lib/types";
 import { extractContactsFromMessage } from "@/lib/extract";
 import ChannelDetails, { DeeperState, EMPTY_DEEPER } from "./DeeperCheck";
@@ -38,12 +38,20 @@ const CHANNEL_META: Record<ContactSource, { title: string; hint: string }> = {
   },
 };
 
+const SCAN_STEPS = [
+  "Checking wording patterns",
+  "Checking domains from the message",
+  "Applying profile answers",
+] as const;
+
 function buildPayload(
   message: string,
   contactSource: ContactSource | "",
   claimedCompany: string,
   deeper: DeeperState,
-  li: LinkedInState
+  li: LinkedInState,
+  leftPlatform: "" | "yes" | "no" | "unknown",
+  harmDone: "" | "none" | "money" | "id" | "both"
 ): UserInput {
   const payload: UserInput = { message: message.trim() };
   if (contactSource) payload.contactSource = contactSource;
@@ -51,6 +59,8 @@ function buildPayload(
   if (deeper.email.trim()) payload.email = deeper.email.trim();
   if (deeper.applicationLink.trim()) payload.applicationLink = deeper.applicationLink.trim();
   if (deeper.companyWebsite.trim()) payload.companyWebsite = deeper.companyWebsite.trim();
+  if (leftPlatform) payload.leftPlatform = leftPlatform;
+  if (harmDone) payload.harmDone = harmDone;
 
   if (linkedInTouched(li)) {
     payload.linkedin = {};
@@ -70,8 +80,11 @@ export default function ScanForm() {
   const [claimedCompany, setClaimedCompany] = useState("");
   const [deeper, setDeeper] = useState<DeeperState>(EMPTY_DEEPER);
   const [linkedin, setLinkedin] = useState<LinkedInState>(EMPTY_LINKEDIN);
+  const [leftPlatform, setLeftPlatform] = useState<"" | "yes" | "no" | "unknown">("");
+  const [harmDone, setHarmDone] = useState<"" | "none" | "money" | "id" | "both">("");
 
   const [loading, setLoading] = useState(false);
+  const [scanStep, setScanStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [report, setReport] = useState<Report | null>(null);
@@ -84,18 +97,31 @@ export default function ScanForm() {
   const detailsRef = useRef<HTMLDivElement>(null);
 
   const extracted = useMemo(() => extractContactsFromMessage(message), [message]);
-  const extractedHint = useMemo(() => {
-    const bits: string[] = [];
-    if (extracted.links[0]) bits.push("a link");
-    if (extracted.emails[0]) bits.push("an email");
-    if (!bits.length) return null;
-    return `Found ${bits.join(" and ")} in the pasted message — we'll use ${bits.length === 1 ? "it" : "them"} automatically.`;
-  }, [extracted]);
+  const extractedChips = useMemo(
+    () => ({
+      email: extracted.emails[0],
+      link: extracted.links[0],
+    }),
+    [extracted]
+  );
+
+  useEffect(() => {
+    if (!loading) {
+      setScanStep(0);
+      return;
+    }
+    setScanStep(0);
+    const t1 = window.setTimeout(() => setScanStep(1), 700);
+    const t2 = window.setTimeout(() => setScanStep(2), 1600);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [loading]);
 
   function syncExtractedIntoDeeper(nextMessage: string, current: DeeperState): DeeperState {
     const found = extractContactsFromMessage(nextMessage);
     const next = { ...current };
-    // Only auto-fill empty fields so manual edits stick.
     if (!next.applicationLink.trim() && found.links[0]) next.applicationLink = found.links[0];
     if (!next.email.trim() && found.emails[0]) next.email = found.emails[0];
     return next;
@@ -113,12 +139,24 @@ export default function ScanForm() {
     }
     setFormError(null);
 
-    const payload = buildPayload(message, contactSource, claimedCompany, deeper, linkedin);
+    const payload = buildPayload(
+      message,
+      contactSource,
+      claimedCompany,
+      deeper,
+      linkedin,
+      leftPlatform,
+      harmDone
+    );
     setLoading(true);
     setError(null);
     setReport(null);
     setThinSubmission(
-      !payload.email && !payload.applicationLink && !payload.companyWebsite && !payload.linkedin
+      !payload.email &&
+        !payload.applicationLink &&
+        !payload.companyWebsite &&
+        !payload.linkedin &&
+        !payload.leftPlatform
     );
     try {
       const res = await fetch("/api/analyze", {
@@ -176,6 +214,8 @@ export default function ScanForm() {
     setClaimedCompany("");
     setDeeper(EMPTY_DEEPER);
     setLinkedin(EMPTY_LINKEDIN);
+    setLeftPlatform("");
+    setHarmDone("");
     setReport(null);
     setError(null);
     setFormError(null);
@@ -185,15 +225,35 @@ export default function ScanForm() {
     });
   }
 
-  const showNudge = report?.confidence === "low" && thinSubmission;
-  const nudgeCopy =
+  const showChecklist =
+    report &&
+    (report.risk_level === "insufficient_evidence" ||
+      (report.confidence === "low" && thinSubmission));
+
+  const checklistItems =
     contactSource === "email"
-      ? "Add the sender's From: address to raise confidence →"
+      ? [
+          "Add the sender's From: email address",
+          "Confirm any link in the paste is selected",
+          "Add the company website if you know it",
+        ]
       : contactSource === "whatsapp"
-        ? "Add a link from the chat (or paste one into the message) →"
+        ? [
+            "Answer whether they asked you to leave LinkedIn/email",
+            "Keep any link from the chat in the paste",
+            "Add the company name they claim",
+          ]
         : contactSource === "linkedin"
-          ? "Answer a couple of profile questions →"
-          : "Add an email or link if you have one →";
+          ? [
+              "Answer verification / posts / mutuals if you can see them",
+              "Add employer shown on their profile",
+              "Add the company they claim to hire for",
+            ]
+          : [
+              "Add a sender email or link",
+              "Add the company name",
+              "Scan again with the fuller message",
+            ];
 
   const channelMeta = contactSource ? CHANNEL_META[contactSource] : null;
 
@@ -238,6 +298,20 @@ export default function ScanForm() {
             placeholder="The full message you received."
             className="mt-1.5 w-full resize-y rounded-[var(--radius-input)] border border-line bg-bg px-3 py-2.5 text-base leading-relaxed text-ink placeholder:text-muted sm:text-[15px]"
           />
+          {(extractedChips.email || extractedChips.link) && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {extractedChips.email && (
+                <span className="rounded-[var(--radius-pill)] border border-accent/30 bg-accent/5 px-2.5 py-1 text-xs text-accent-ink">
+                  Email in paste: {extractedChips.email}
+                </span>
+              )}
+              {extractedChips.link && (
+                <span className="max-w-full truncate rounded-[var(--radius-pill)] border border-accent/30 bg-accent/5 px-2.5 py-1 text-xs text-accent-ink">
+                  Link in paste: {extractedChips.link}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="mt-5">
@@ -277,7 +351,7 @@ export default function ScanForm() {
                   onClaimedCompanyChange={setClaimedCompany}
                   emailRef={emailRef}
                   linkRef={linkRef}
-                  extractedHint={extractedHint}
+                  extractedChips={extractedChips}
                 />
                 <LinkedInCheck value={linkedin} onChange={setLinkedin} />
               </>
@@ -290,9 +364,25 @@ export default function ScanForm() {
                 onClaimedCompanyChange={setClaimedCompany}
                 emailRef={emailRef}
                 linkRef={linkRef}
-                extractedHint={extractedHint}
+                extractedChips={extractedChips}
+                leftPlatform={leftPlatform}
+                onLeftPlatformChange={
+                  contactSource === "whatsapp" ? setLeftPlatform : undefined
+                }
               />
             )}
+
+            <TapSelect
+              label="Have you already sent money or ID?"
+              value={harmDone}
+              onChange={setHarmDone}
+              options={[
+                { value: "none", label: "No" },
+                { value: "money", label: "Money" },
+                { value: "id", label: "ID / docs" },
+                { value: "both", label: "Both" },
+              ]}
+            />
           </div>
         )}
 
@@ -319,9 +409,26 @@ export default function ScanForm() {
       </form>
 
       {loading && (
-        <p className="text-center text-sm text-muted" role="status" aria-live="polite">
-          Scanning…
-        </p>
+        <div
+          className="rounded-[var(--radius-card)] border border-line bg-surface px-4 py-4"
+          role="status"
+          aria-live="polite"
+        >
+          <p className="text-sm font-medium text-ink">Scanning…</p>
+          <ol className="mt-3 space-y-1.5">
+            {SCAN_STEPS.map((step, i) => (
+              <li
+                key={step}
+                className={`text-sm ${i <= scanStep ? "text-ink" : "text-muted"}`}
+              >
+                <span className="mr-2 text-accent" aria-hidden="true">
+                  {i < scanStep ? "✓" : i === scanStep ? "·" : "○"}
+                </span>
+                {step}
+              </li>
+            ))}
+          </ol>
+        </div>
       )}
 
       {error && (
@@ -343,14 +450,27 @@ export default function ScanForm() {
       {report && (
         <div ref={resultRef} tabIndex={-1} className="space-y-3 outline-none">
           <ResultCard report={report} />
-          {showNudge && (
-            <button
-              type="button"
-              onClick={focusDetails}
-              className="w-full rounded-[var(--radius-input)] border border-dashed border-line bg-surface px-4 py-3 text-left text-sm text-muted transition-colors hover:border-accent hover:text-accent-ink"
-            >
-              {nudgeCopy}
-            </button>
+          {showChecklist && (
+            <div className="rounded-[var(--radius-card)] border border-dashed border-line bg-surface px-4 py-4">
+              <p className="text-sm font-medium text-ink">Raise confidence — then scan again</p>
+              <ul className="mt-2 space-y-1.5 text-sm text-muted">
+                {checklistItems.map((item) => (
+                  <li key={item} className="flex gap-2">
+                    <span className="text-accent" aria-hidden="true">
+                      →
+                    </span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                onClick={focusDetails}
+                className="mt-3 text-sm font-medium text-accent-ink underline decoration-line underline-offset-2"
+              >
+                Jump to details
+              </button>
+            </div>
           )}
           <div className="text-center">
             <button

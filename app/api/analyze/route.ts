@@ -34,6 +34,10 @@ function sanitizeInput(raw: unknown): UserInput | null {
   input.email = str(r.email);
   input.applicationLink = str(r.applicationLink, 2000);
   input.companyWebsite = str(r.companyWebsite);
+  if (["yes", "no", "unknown"].includes(r.leftPlatform as string))
+    input.leftPlatform = r.leftPlatform as UserInput["leftPlatform"];
+  if (["none", "money", "id", "both"].includes(r.harmDone as string))
+    input.harmDone = r.harmDone as UserInput["harmDone"];
 
   if (r.linkedin && typeof r.linkedin === "object") {
     const li = r.linkedin as Record<string, unknown>;

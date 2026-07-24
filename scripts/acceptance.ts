@@ -419,6 +419,45 @@ async function main() {
     JSON.stringify(r30.findings.concerning.map((c) => c.id))
   );
 
+  // 31. Off-platform move reported by user is a strong signal
+  const r31 = await assess(
+    { message: BENIGN, contactSource: "whatsapp", leftPlatform: "yes" },
+    {}
+  );
+  check(
+    "left platform -> some_concerns",
+    r31.risk_level === "some_concerns" &&
+      r31.findings.concerning.some((c) => c.id === "left_platform"),
+    `got ${r31.risk_level}`
+  );
+
+  // 32. Harm already done switches guidance to report/freeze steps
+  const r32 = await assess(
+    { message: BENIGN, harmDone: "money" },
+    { cryptoDeposit: true }
+  );
+  check(
+    "harmDone money overrides guidance",
+    /bank|IC3|ReportFraud/i.test(r32.guidance.do.join(" ")) &&
+      r32.guidance.dont.some((d) => /more money/i.test(d)),
+    JSON.stringify(r32.guidance)
+  );
+
+  // 33. Senior claim + no posts is a soft LinkedIn signal
+  const r33 = await assess(
+    {
+      message: BENIGN,
+      contactSource: "linkedin",
+      linkedin: { hasPosts: "no" },
+    },
+    { claimsSeniorRole: true }
+  );
+  check(
+    "senior + no posts soft finding",
+    r33.findings.concerning.some((c) => c.id === "li_senior_silent"),
+    JSON.stringify(r33.findings.concerning.map((c) => c.id))
+  );
+
   console.log(failures ? `\n${failures} failure(s)` : "\nAll acceptance checks passed");
   process.exit(failures ? 1 : 0);
 }

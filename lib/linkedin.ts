@@ -5,7 +5,6 @@ export function scoreLinkedIn(
   s: LinkedInAnswers & { claimedHiringCompany?: string; claimsSeniorRole?: boolean }
 ): { strong: Finding[]; soft: Finding[]; positive: Finding[] } {
   const strong: Finding[] = [], soft: Finding[] = [], positive: Finding[] = [];
-  void s.claimsSeniorRole;
 
   if (
     s.profileEmployer &&
@@ -24,7 +23,13 @@ export function scoreLinkedIn(
       explanation: "The profile has no visible posts — common for disposable scam accounts.",
     });
 
-  // Engagement only counts when they said the profile has posts.
+  if (s.claimsSeniorRole && s.hasPosts === "no")
+    soft.push({
+      id: "li_senior_silent",
+      explanation:
+        "The message implies an established senior recruiter, but the profile has no posts — a common mismatch on throwaway accounts.",
+    });
+
   if (s.hasPosts === "yes") {
     if (s.postEngagement === "none")
       soft.push({
@@ -48,7 +53,6 @@ export function scoreLinkedIn(
       });
   }
 
-  // POSITIVE only — raises confidence, never cancels a danger signal.
   if (s.verification === "verified")
     positive.push({
       id: "li_verified",

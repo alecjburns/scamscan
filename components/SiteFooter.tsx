@@ -29,6 +29,12 @@ export default function SiteFooter() {
         >
           Contact
         </Link>
+        <Link
+          href="/terms"
+          className="text-accent-ink underline decoration-line underline-offset-2"
+        >
+          Terms
+        </Link>
       </p>
     </footer>
   );

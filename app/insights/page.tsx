@@ -157,6 +157,51 @@ export default function InsightsPage() {
           </div>
         </section>
 
+        <section className="ss-rise ss-rise-delay-3 mt-14">
+          <h2 className="font-[family-name:var(--font-display)] text-xl font-medium tracking-tight text-ink sm:text-2xl">
+            Playbooks
+          </h2>
+          <p className="mt-3 max-w-[36rem] text-[15px] leading-relaxed text-muted">
+            Deeper breakdowns of specific tactics — warning signs, and what to do if you spot
+            them.
+          </p>
+          <div className="mt-6 grid gap-4 sm:grid-cols-3">
+            <Link
+              href="/insights/task-scam"
+              className="group rounded-[var(--radius-card)] border border-line bg-surface/90 p-5 transition-colors hover:border-accent"
+            >
+              <h3 className="text-[15px] font-medium text-ink group-hover:text-accent-ink">
+                Task &amp; &ldquo;training fee&rdquo; job scams
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted">
+                A growing in-app balance that only pays out once you deposit money first.
+              </p>
+            </Link>
+            <Link
+              href="/insights/whatsapp-switch"
+              className="group rounded-[var(--radius-card)] border border-line bg-surface/90 p-5 transition-colors hover:border-accent"
+            >
+              <h3 className="text-[15px] font-medium text-ink group-hover:text-accent-ink">
+                When they push you to WhatsApp
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted">
+                Why moving off-platform fast is one of the clearest early warning signs.
+              </p>
+            </Link>
+            <Link
+              href="/insights/fake-careers"
+              className="group rounded-[var(--radius-card)] border border-line bg-surface/90 p-5 transition-colors hover:border-accent"
+            >
+              <h3 className="text-[15px] font-medium text-ink group-hover:text-accent-ink">
+                Fake careers pages &amp; lookalike domains
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted">
+                How cloned branding on an almost-right domain is built to earn your trust.
+              </p>
+            </Link>
+          </div>
+        </section>
+
         <aside
           className="mt-12 rounded-[var(--radius-card)] border border-line bg-surface/95 p-6 sm:p-7"
           style={{ boxShadow: "var(--shadow-card)" }}

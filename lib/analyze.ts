@@ -154,6 +154,13 @@ export async function assess(input: UserInput, signals: Signals): Promise<Report
   // STEP 2: STRONG SIGNALS
   const strong: Finding[] = [];
   if (signals.platformSwitchPressure) strong.push(say("platform_switch","platformSwitchPressure","You were pushed to move to WhatsApp/Telegram quickly."));
+  if (input.leftPlatform === "yes" && !signals.platformSwitchPressure)
+    strong.push({
+      id: "left_platform",
+      explanation:
+        "You were asked to continue off the original platform (for example LinkedIn → WhatsApp) — a common early scam move.",
+    });
+  if (input.leftPlatform === "yes") checks_run.push("Off-platform move you reported");
   if (signals.offerWithoutInterview) strong.push(say("no_interview","offerWithoutInterview","An offer or next step came with no real interview."));
   if (signals.sensitiveInfoRequest) strong.push(say("sensitive_info","sensitiveInfoRequest","You were asked for bank or identity details early on."));
   for (const c of concerning.filter((x) => x.id.startsWith("strong_domain_mismatch"))) strong.push(c);
@@ -242,6 +249,7 @@ export async function assess(input: UserInput, signals: Signals): Promise<Report
   const advice = buildGuidance(risk_level, isLinkedIn, {
     classifierFailed: Boolean(signals.classifierFailed),
     coverage,
+    harmDone: input.harmDone,
   });
 
   return {
@@ -259,11 +267,39 @@ export async function assess(input: UserInput, signals: Signals): Promise<Report
 function buildGuidance(
   level: RiskLevel,
   isLinkedIn: boolean,
-  opts: { classifierFailed: boolean; coverage: number }
+  opts: {
+    classifierFailed: boolean;
+    coverage: number;
+    harmDone?: "none" | "money" | "id" | "both";
+  }
 ): { summary: string; do: string[]; dont: string[] } {
   const reportOnLinkedIn = isLinkedIn
     ? "On LinkedIn: More → Report (you can report without notifying them)"
     : null;
+
+  const harm = opts.harmDone && opts.harmDone !== "none" ? opts.harmDone : null;
+  if (harm) {
+    const money = harm === "money" || harm === "both";
+    const id = harm === "id" || harm === "both";
+    return {
+      summary: money
+        ? "If money already moved, stop contact and report quickly — recovery is hard, especially with crypto."
+        : "If you already shared identity documents, treat this as a security incident and lock down accounts.",
+      do: [
+        money ? "Contact your bank / card issuer and say it may be fraud" : null,
+        money ? "Report at IC3.gov and ReportFraud.ftc.gov (or your local equivalent)" : null,
+        id ? "Monitor credit and change passwords on email and financial accounts" : null,
+        id ? "Assume your documents may be reused — be alert for new account attempts" : null,
+        reportOnLinkedIn,
+        "Keep copies of messages, wallets, and transaction IDs for the report",
+      ].filter((x): x is string => Boolean(x)),
+      dont: [
+        "Don't send more money, crypto, or documents to 'unlock' or 'recover' funds",
+        "Don't click links or install software from follow-up messages",
+        "Don't stay in chat with them — end contact",
+      ],
+    };
+  }
 
   switch (level) {
     case "critical_risk":
@@ -300,7 +336,7 @@ function buildGuidance(
     case "low_apparent_risk":
       return {
         summary:
-          "No major red flags in what you provided — that still isn't proof the role is real.",
+          "Looks clearer based on what you provided — that still isn't proof the role is real.",
         do: [
           "Confirm the recruiter and role via the company's official careers page or phone",
           "Use contact details you find yourself, not only what was in the message",

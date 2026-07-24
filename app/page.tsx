@@ -12,8 +12,8 @@ export default function Home() {
           Check a recruiter or job offer before you reply.
         </h1>
         <p className="mt-3 max-w-[34rem] text-[15px] leading-relaxed text-muted">
-          Paste the message. Get an evidence-backed read on whether the approach looks genuine,
-          suspicious, or dangerous.
+          Paste the message. Get an evidence-backed read on whether the approach looks clearer,
+          warrants caution, or looks dangerous — plus what to do next.
         </p>
         <p className="mt-3 max-w-[34rem] text-sm leading-relaxed text-muted">
           Don&rsquo;t paste IDs, bank details, or passwords. Message text goes once to Anthropic
